@@ -186,7 +186,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
   const [showCode, setShowCode] = useState(false);
   const [zoom, setZoom] = useState(100);
 
-  // Save to history
   const saveToHistory = useCallback((newComponents: EditorComponent[]) => {
     const newState: HistoryState = {
       components: JSON.parse(JSON.stringify(newComponents)),
@@ -196,7 +195,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(newState);
     
-    // Keep only last 50 states
     if (newHistory.length > 50) {
       newHistory.shift();
     }
@@ -205,7 +203,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
-  // Undo function
   const undo = () => {
     if (historyIndex > 0) {
       const prevState = history[historyIndex - 1];
@@ -214,7 +211,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
     }
   };
 
-  // Redo function
   const redo = () => {
     if (historyIndex < history.length - 1) {
       const nextState = history[historyIndex + 1];
@@ -242,7 +238,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
         const parsedComponents: EditorComponent[] = [];
         let componentIndex = 0;
         
-        // Use o 'body' se o HTML for um documento completo, senão use o próprio div.
         const body = tempDiv.querySelector('body') || tempDiv;
 
         Array.from(body.children).forEach((element) => {
@@ -255,7 +250,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                 }
             }
             
-            // Tenta adivinhar um tipo mais apropriado
             let type = 'container';
             const tagName = element.tagName.toLowerCase();
             if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) type = 'heading';
@@ -286,8 +280,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
     }
     
     setIsLoading(false);
-  // A dependência de `saveToHistory` foi removida para evitar loops.
-  }, [initialData]); 
+  }, [initialData, saveToHistory]);
 
   const addComponent = (type: keyof typeof COMPONENT_TYPES) => {
     const componentType = COMPONENT_TYPES[type];
@@ -706,8 +699,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
-
-                      {/* [INÍCIO DA CORREÇÃO] Component Render Refatorado */}
                       {(() => {
                         const baseImageStyles = { width: '100%', height: 'auto', display: 'block' };
                         const baseButtonStyles = { all: 'inherit', display: 'inline-block' };
@@ -742,7 +733,6 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                             );
                         }
                       })()}
-                      {/* [FIM DA CORREÇÃO] */}
                     </div>
                   ))}
                 </div>
