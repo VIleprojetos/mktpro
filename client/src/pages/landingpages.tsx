@@ -1,33 +1,30 @@
-// client/src/pages/landingpages.tsx
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/api';
-import { LandingPage as LpType, InsertLandingPage, Campaign as CampaignType } from '@shared/schema';
+import { LandingPage as LpType, Campaign as CampaignType } from '../../shared/schema';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { MoreHorizontal, Edit, Bot, Loader2, Link as LinkIcon, Save, ExternalLink, Palette, Zap, Target, Settings, Sparkles, Wand2, Eye, Code, Layers, Rocket } from 'lucide-react';
+import { MoreHorizontal, Edit, Bot, Loader2, Link as LinkIcon, Save, ExternalLink, Palette, Zap, Target, Settings, Sparkles, Wand2, Eye, Code, Layers, Rocket, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import GrapesJsEditor from '@/components/grapesjs-editor';
+import { PuckEditor } from '@/components/PuckEditor'; // <<< ALTERADO
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import type { Data } from '@puckeditor/core';
 
-// Schema atualizado com todas as opções avançadas
 const generateLpFormSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   campaignId: z.preprocess((val) => (val === "NONE" || val === "" ? null : Number(val)), z.number().nullable().optional()),
   reference: z.string().url("Por favor, insira uma URL válida.").optional().or(z.literal('')),
   prompt: z.string().min(20, "O prompt deve ter pelo menos 20 caracteres."),
-  
-  // Opções avançadas
   style: z.enum(['modern', 'minimal', 'bold', 'elegant', 'tech', 'startup']).default('modern'),
   colorScheme: z.enum(['dark', 'light', 'gradient', 'neon', 'earth', 'ocean']).default('dark'),
   industry: z.string().optional(),
@@ -66,7 +63,6 @@ export default function LandingPages() {
   const [activePreview, setActivePreview] = useState(0);
   const [showEditor, setShowEditor] = useState(false);
   const [editingLp, setEditingLp] = useState<LpType | null>(null);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const { data: campaigns = [] } = useQuery<CampaignType[]>({
     queryKey: ['campaignsForLpSelect'],
@@ -80,164 +76,75 @@ export default function LandingPages() {
 
   const form = useForm<GenerateLpFormData>({
     resolver: zodResolver(generateLpFormSchema),
-    defaultValues: { 
-      name: '', 
-      campaignId: null, 
-      reference: '', 
-      prompt: '',
-      style: 'modern',
-      colorScheme: 'dark',
-      industry: '',
-      targetAudience: '',
-      primaryCTA: 'Começar Agora',
-      secondaryCTA: 'Saber Mais',
-      includeTestimonials: true,
-      includePricing: false,
-      includeStats: true,
-      includeFAQ: true,
-      animationsLevel: 'moderate'
-    },
+    defaultValues: { name: '', campaignId: null, reference: '', prompt: '', style: 'modern', colorScheme: 'dark', industry: '', targetAudience: '', primaryCTA: 'Começar Agora', secondaryCTA: 'Saber Mais', includeTestimonials: true, includePricing: false, includeStats: true, includeFAQ: true, animationsLevel: 'moderate' },
   });
 
-  // Mutação para preview simples
   const previewMutation = useMutation({
-    mutationFn: async (data: { prompt: string; reference?: string; options?: LandingPageOptions }) => {
-      const response = await apiRequest('POST', '/api/landingpages/preview-advanced', data);
-      return response.json();
-    },
+    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions }) => apiRequest('POST', '/api/landingpages/preview-advanced', data).then(res => res.json()),
     onSuccess: (data: { htmlContent: string }) => {
       setPreviewHtml(data.htmlContent);
       setPreviewVariations([]);
       setActivePreview(0);
-      toast({ 
-        title: "Landing Page Gerada! 🚀", 
-        description: "Sua página está pronta para revisão." 
-      });
+      toast({ title: "Landing Page Gerada! 🚀", description: "Sua página está pronta para revisão." });
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro na Geração", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro na Geração", description: error.message, variant: "destructive" });
     },
   });
 
-  // Mutação para múltiplas variações
   const variationsMutation = useMutation({
-    mutationFn: async (data: { prompt: string; reference?: string; options?: LandingPageOptions; count?: number }) => {
-      // ✅ ROTA CORRIGIDA: Chamando a rota correta que não precisa de ID.
-      const response = await apiRequest('POST', '/api/landingpages/generate-variations', data);
-      return response.json();
-    },
+    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions; count?: number }) => apiRequest('POST', '/api/landingpages/generate-variations', data).then(res => res.json()),
     onSuccess: (data: { variations: string[] }) => {
       setPreviewVariations(data.variations);
       setPreviewHtml(data.variations[0] || null);
       setActivePreview(0);
-      toast({ 
-        title: `${data.variations.length} Variações Criadas! ✨`, 
-        description: "Explore as diferentes opções de design." 
-      });
+      toast({ title: `${data.variations.length} Variações Criadas! ✨`, description: "Explore as diferentes opções de design." });
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro ao Gerar Variações", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro ao Gerar Variações", description: error.message, variant: "destructive" });
     },
   });
 
-  // Mutação para salvar e editar
   const saveAndEditMutation = useMutation({
-    // ✅ DADOS CORRIGIDOS: A tipagem agora inclui as `generationOptions`
-    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: { html: string; css: string }; generationOptions?: LandingPageOptions }) =>
-      apiRequest('POST', '/api/landingpages', data).then(res => res.json()),
+    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: { html: string; css: string }; generationOptions?: LandingPageOptions }) => apiRequest('POST', '/api/landingpages', data).then(res => res.json()),
     onSuccess: (savedLp: LpType) => {
-      toast({ 
-        title: "Página Salva com Sucesso! 💾", 
-        description: "Abrindo o editor visual..." 
-      });
+      toast({ title: "Página Salva com Sucesso! 💾", description: "Abrindo o editor visual..." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
       setEditingLp(savedLp);
       setShowEditor(true);
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro ao Salvar", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro ao Salvar", description: error.message, variant: "destructive" });
     },
   });
-  
-  // Mutação para atualizar página existente
+
   const updateLpMutation = useMutation({
-    mutationFn: async (data: { id: number, grapesJsData: any }) => {
-      return apiRequest('PUT', `/api/landingpages/${data.id}`, { grapesJsData: data.grapesJsData });
-    },
+    mutationFn: (data: { id: number, grapesJsData: Data }) => apiRequest('PUT', `/api/landingpages/${data.id}`, { grapesJsData: data.grapesJsData }),
     onSuccess: () => {
-      toast({ 
-        title: "Alterações Salvas! ✅", 
-        description: "Sua landing page foi atualizada com sucesso." 
-      });
+      toast({ title: "Alterações Salvas! ✅", description: "Sua landing page foi atualizada com sucesso." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro ao Salvar Alterações", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro ao Salvar Alterações", description: error.message, variant: "destructive" });
     }
   });
 
-  // Mutação para otimizar página existente
   const optimizeMutation = useMutation({
-    mutationFn: async (data: { html: string; goals: string[] }) => {
-      // ✅ ROTA CORRIGIDA: Chamando a rota correta que não precisa de ID.
-      const response = await apiRequest('POST', '/api/landingpages/optimize', data);
-      return response.json();
-    },
+    mutationFn: (data: { html: string; goals: string[] }) => apiRequest('POST', '/api/landingpages/optimize', data).then(res => res.json()),
     onSuccess: (data: { htmlContent: string }) => {
       setPreviewHtml(data.htmlContent);
-      toast({ 
-        title: "Página Otimizada! ⚡", 
-        description: "Aplicamos melhorias para aumentar a conversão." 
-      });
+      toast({ title: "Página Otimizada! ⚡", description: "Aplicamos melhorias para aumentar a conversão." });
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro na Otimização", 
-        description: error.message, 
-        variant: "destructive" 
-      });
+      toast({ title: "Erro na Otimização", description: error.message, variant: "destructive" });
     },
   });
 
   const onGenerateSubmit = (data: GenerateLpFormData) => {
     setPreviewHtml(null);
     setPreviewVariations([]);
-    
-    const options: LandingPageOptions = {
-      style: data.style,
-      colorScheme: data.colorScheme,
-      industry: data.industry,
-      targetAudience: data.targetAudience,
-      primaryCTA: data.primaryCTA,
-      secondaryCTA: data.secondaryCTA,
-      includeTestimonials: data.includeTestimonials,
-      includePricing: data.includePricing,
-      includeStats: data.includeStats,
-      includeFAQ: data.includeFAQ,
-      animationsLevel: data.animationsLevel,
-    };
-
-    previewMutation.mutate({ 
-      prompt: data.prompt, 
-      reference: data.reference,
-      options 
-    });
+    const options: LandingPageOptions = { style: data.style, colorScheme: data.colorScheme, industry: data.industry, targetAudience: data.targetAudience, primaryCTA: data.primaryCTA, secondaryCTA: data.secondaryCTA, includeTestimonials: data.includeTestimonials, includePricing: data.includePricing, includeStats: data.includeStats, includeFAQ: data.includeFAQ, animationsLevel: data.animationsLevel, };
+    previewMutation.mutate({ prompt: data.prompt, reference: data.reference, options });
   };
 
   const onGenerateVariations = () => {
@@ -246,65 +153,22 @@ export default function LandingPages() {
       toast({ title: "Prompt necessário", description: "Por favor, preencha a descrição da página.", variant: "destructive"});
       return;
     }
-    const options: LandingPageOptions = {
-      style: data.style,
-      colorScheme: data.colorScheme,
-      industry: data.industry,
-      targetAudience: data.targetAudience,
-      primaryCTA: data.primaryCTA,
-      secondaryCTA: data.secondaryCTA,
-      includeTestimonials: data.includeTestimonials,
-      includePricing: data.includePricing,
-      includeStats: data.includeStats,
-      includeFAQ: data.includeFAQ,
-      animationsLevel: data.animationsLevel,
-    };
-
-    variationsMutation.mutate({ 
-      prompt: data.prompt, 
-      reference: data.reference,
-      options,
-      count: 3 
-    });
+    const options: LandingPageOptions = { style: data.style, colorScheme: data.colorScheme, industry: data.industry, targetAudience: data.targetAudience, primaryCTA: data.primaryCTA, secondaryCTA: data.secondaryCTA, includeTestimonials: data.includeTestimonials, includePricing: data.includePricing, includeStats: data.includeStats, includeFAQ: data.includeFAQ, animationsLevel: data.animationsLevel, };
+    variationsMutation.mutate({ prompt: data.prompt, reference: data.reference, options, count: 3 });
   };
 
   const handleOptimize = () => {
     const currentHtml = getCurrentPreview();
     if (!currentHtml) return;
-    
-    optimizeMutation.mutate({
-      html: currentHtml,
-      goals: ['conversion', 'performance', 'accessibility']
-    });
+    optimizeMutation.mutate({ html: currentHtml, goals: ['conversion', 'performance', 'accessibility'] });
   };
   
   const handleEditClick = () => {
     const currentHtml = getCurrentPreview();
     if (!currentHtml) return;
-    
     const formData = form.getValues();
-    
-    // ✅ CORREÇÃO: Montando o objeto `generationOptions` a partir do formulário
-    const generationOptions: LandingPageOptions = {
-      style: formData.style,
-      colorScheme: formData.colorScheme,
-      industry: formData.industry,
-      targetAudience: formData.targetAudience,
-      primaryCTA: formData.primaryCTA,
-      secondaryCTA: formData.secondaryCTA,
-      includeTestimonials: formData.includeTestimonials,
-      includePricing: formData.includePricing,
-      includeStats: formData.includeStats,
-      includeFAQ: formData.includeFAQ,
-      animationsLevel: formData.animationsLevel,
-    };
-
-    saveAndEditMutation.mutate({
-      name: formData.name,
-      campaignId: formData.campaignId || null,
-      grapesJsData: { html: currentHtml, css: '' }, // O CSS é extraído no editor
-      generationOptions: generationOptions, // Enviando as opções para o backend
-    });
+    const generationOptions: LandingPageOptions = { style: formData.style, colorScheme: formData.colorScheme, industry: formData.industry, targetAudience: formData.targetAudience, primaryCTA: formData.primaryCTA, secondaryCTA: formData.secondaryCTA, includeTestimonials: formData.includeTestimonials, includePricing: formData.includePricing, includeStats: formData.includeStats, includeFAQ: formData.includeFAQ, animationsLevel: formData.animationsLevel, };
+    saveAndEditMutation.mutate({ name: formData.name, campaignId: formData.campaignId || null, grapesJsData: { html: currentHtml, css: '' }, generationOptions: generationOptions, });
   };
 
   const handleOpenInNewTab = () => {
@@ -315,16 +179,12 @@ export default function LandingPages() {
         newWindow.document.write(currentHtml);
         newWindow.document.close();
       } else {
-        toast({ 
-          title: "Erro", 
-          description: "Não foi possível abrir a nova aba. Verifique se o seu navegador está bloqueando pop-ups.", 
-          variant: "destructive" 
-        });
+        toast({ title: "Erro", description: "Não foi possível abrir a nova aba. Verifique se o seu navegador está bloqueando pop-ups.", variant: "destructive" });
       }
     }
   };
 
-  const handleSaveFromEditor = (id: number, data: any) => {
+  const handleSaveFromEditor = (id: number, data: Data) => {
     updateLpMutation.mutate({ id, grapesJsData: data });
   };
 
@@ -341,8 +201,9 @@ export default function LandingPages() {
 
   if (showEditor && editingLp) {
     return (
-      <GrapesJsEditor 
-        initialData={editingLp.grapesJsData as any} 
+      <PuckEditor
+        key={editingLp.id}
+        initialData={typeof editingLp.grapesJsData === 'object' && editingLp.grapesJsData !== null ? editingLp.grapesJsData as Data : undefined}
         onSave={(data) => handleSaveFromEditor(editingLp.id, data)}
         onBack={() => {
           setShowEditor(false);
@@ -355,7 +216,6 @@ export default function LandingPages() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-900 dark:to-gray-900">
       <div className="container mx-auto p-4 md:p-6 space-y-8">
-        {/* Header */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
             <Wand2 className="h-8 w-8 text-primary" />
@@ -369,7 +229,6 @@ export default function LandingPages() {
           </p>
         </div>
 
-        {/* Estatísticas Rápidas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="text-center">
             <CardContent className="pt-6">
@@ -398,7 +257,6 @@ export default function LandingPages() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-          {/* Formulário de Configuração */}
           <div className="space-y-6">
             <Card className="sticky top-6">
               <CardHeader>
@@ -420,109 +278,51 @@ export default function LandingPages() {
                       </TabsList>
                       
                       <TabsContent value="basic" className="space-y-4">
-                        <FormField 
-                          control={form.control} 
-                          name="name" 
-                          render={({ field }) => (
+                        <FormField control={form.control} name="name" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Nome da Página *</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Ex: Lançamento do Produto Y" 
-                                  {...field} 
-                                />
-                              </FormControl>
+                              <FormControl><Input placeholder="Ex: Lançamento do Produto Y" {...field} /></FormControl>
                               <FormMessage />
                             </FormItem>
-                          )} 
-                        />
-
-                        <FormField 
-                          control={form.control} 
-                          name="campaignId" 
-                          render={({ field }) => (
+                        )} />
+                        <FormField control={form.control} name="campaignId" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Campanha</FormLabel>
-                              <Select 
-                                onValueChange={(value) => field.onChange(value === "NONE" ? null : parseInt(value))} 
-                                defaultValue={field.value === null ? "NONE" : String(field.value)}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione uma campanha" />
-                                  </SelectTrigger>
-                                </FormControl>
+                              <Select onValueChange={(value) => field.onChange(value === "NONE" ? null : parseInt(value))} defaultValue={field.value === null ? "NONE" : String(field.value)}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione uma campanha" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                   <SelectItem value="NONE">Nenhuma campanha</SelectItem>
-                                  {campaigns.map(c => (
-                                    <SelectItem key={c.id} value={String(c.id)}>
-                                      {c.name}
-                                    </SelectItem>
-                                  ))}
+                                  {campaigns.map(c => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
                             </FormItem>
-                          )} 
-                        />
-
-                        <FormField 
-                          control={form.control} 
-                          name="prompt" 
-                          render={({ field }) => (
+                        )} />
+                        <FormField control={form.control} name="prompt" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Descrição da Página *</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Descreva detalhadamente sua landing page: objetivo, público-alvo, principais seções, produtos/serviços, tom de voz, etc..."
-                                  rows={6}
-                                  className="resize-none"
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Seja específico para obter melhores resultados (mínimo 20 caracteres)
-                              </FormDescription>
+                              <FormControl><Textarea placeholder="Descreva detalhadamente sua landing page: objetivo, público-alvo, principais seções, produtos/serviços, tom de voz, etc..." rows={6} className="resize-none" {...field} /></FormControl>
+                              <FormDescription>Seja específico para obter melhores resultados (mínimo 20 caracteres)</FormDescription>
                               <FormMessage />
                             </FormItem>
-                          )} 
-                        />
-
-                        <FormField 
-                          control={form.control} 
-                          name="reference" 
-                          render={({ field }) => (
+                        )} />
+                        <FormField control={form.control} name="reference" render={({ field }) => (
                             <FormItem>
                               <FormLabel>URL de Referência (Opcional)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="https://exemplo.com/inspiracao"
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                URL de uma página que serve como inspiração visual
-                              </FormDescription>
+                              <FormControl><Input placeholder="https://exemplo.com/inspiracao" {...field} /></FormControl>
+                              <FormDescription>URL de uma página que serve como inspiração visual</FormDescription>
                               <FormMessage />
                             </FormItem>
-                          )} 
-                        />
+                        )} />
                       </TabsContent>
 
                       <TabsContent value="advanced" className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                          <FormField 
-                            control={form.control} 
-                            name="style" 
-                            render={({ field }) => (
+                          <FormField control={form.control} name="style" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Estilo Visual</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
+                                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                   <SelectContent>
                                     <SelectItem value="modern">Moderno</SelectItem>
                                     <SelectItem value="minimal">Minimalista</SelectItem>
@@ -533,21 +333,12 @@ export default function LandingPages() {
                                   </SelectContent>
                                 </Select>
                               </FormItem>
-                            )} 
-                          />
-
-                          <FormField 
-                            control={form.control} 
-                            name="colorScheme" 
-                            render={({ field }) => (
+                          )} />
+                          <FormField control={form.control} name="colorScheme" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Esquema de Cores</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
+                                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                   <SelectContent>
                                     <SelectItem value="dark">Escuro</SelectItem>
                                     <SelectItem value="light">Claro</SelectItem>
@@ -558,78 +349,29 @@ export default function LandingPages() {
                                   </SelectContent>
                                 </Select>
                               </FormItem>
-                            )} 
-                          />
+                          )} />
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
-                          <FormField 
-                            control={form.control} 
-                            name="industry" 
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Indústria/Setor</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Ex: SaaS, E-commerce, Saúde" {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )} 
-                          />
-
-                          <FormField 
-                            control={form.control} 
-                            name="targetAudience" 
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Público-Alvo</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Ex: Gestores de TI, Empreendedores" {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )} 
-                          />
+                          <FormField control={form.control} name="industry" render={({ field }) => (
+                              <FormItem><FormLabel>Indústria/Setor</FormLabel><FormControl><Input placeholder="Ex: SaaS, E-commerce, Saúde" {...field} /></FormControl></FormItem>
+                          )} />
+                          <FormField control={form.control} name="targetAudience" render={({ field }) => (
+                              <FormItem><FormLabel>Público-Alvo</FormLabel><FormControl><Input placeholder="Ex: Gestores de TI, Empreendedores" {...field} /></FormControl></FormItem>
+                          )} />
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
-                          <FormField 
-                            control={form.control} 
-                            name="primaryCTA" 
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>CTA Primário</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Ex: Teste Grátis por 14 Dias" {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )} 
-                          />
-
-                          <FormField 
-                            control={form.control} 
-                            name="secondaryCTA" 
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>CTA Secundário</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Ex: Ver Demonstração" {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )} 
-                          />
+                          <FormField control={form.control} name="primaryCTA" render={({ field }) => (
+                              <FormItem><FormLabel>CTA Primário</FormLabel><FormControl><Input placeholder="Ex: Teste Grátis por 14 Dias" {...field} /></FormControl></FormItem>
+                          )} />
+                          <FormField control={form.control} name="secondaryCTA" render={({ field }) => (
+                              <FormItem><FormLabel>CTA Secundário</FormLabel><FormControl><Input placeholder="Ex: Ver Demonstração" {...field} /></FormControl></FormItem>
+                          )} />
                         </div>
-
-                        <FormField 
-                          control={form.control} 
-                          name="animationsLevel" 
-                          render={({ field }) => (
+                        <FormField control={form.control} name="animationsLevel" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Nível de Animações</FormLabel>
                               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                </FormControl>
+                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                   <SelectItem value="none">Nenhuma</SelectItem>
                                   <SelectItem value="subtle">Sutil</SelectItem>
@@ -638,122 +380,34 @@ export default function LandingPages() {
                                 </SelectContent>
                               </Select>
                             </FormItem>
-                          )} 
-                        />
-
+                        )} />
                         <Separator />
-
                         <div className="space-y-3">
                           <div className="text-sm font-medium">Seções Incluídas</div>
                           <div className="grid grid-cols-2 gap-4">
-                            <FormField 
-                              control={form.control} 
-                              name="includeTestimonials" 
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2">
-                                  <FormControl>
-                                    <Switch 
-                                      checked={field.value} 
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm">Depoimentos</FormLabel>
-                                </FormItem>
-                              )} 
-                            />
-
-                            <FormField 
-                              control={form.control} 
-                              name="includePricing" 
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2">
-                                  <FormControl>
-                                    <Switch 
-                                      checked={field.value} 
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm">Preços</FormLabel>
-                                </FormItem>
-                              )} 
-                            />
-
-                            <FormField 
-                              control={form.control} 
-                              name="includeStats" 
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2">
-                                  <FormControl>
-                                    <Switch 
-                                      checked={field.value} 
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm">Estatísticas</FormLabel>
-                                </FormItem>
-                              )} 
-                            />
-
-                            <FormField 
-                              control={form.control} 
-                              name="includeFAQ" 
-                              render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2">
-                                  <FormControl>
-                                    <Switch 
-                                      checked={field.value} 
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm">FAQ</FormLabel>
-                                </FormItem>
-                              )} 
-                            />
+                            <FormField control={form.control} name="includeTestimonials" render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Depoimentos</FormLabel></FormItem>
+                            )} />
+                            <FormField control={form.control} name="includePricing" render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Preços</FormLabel></FormItem>
+                            )} />
+                            <FormField control={form.control} name="includeStats" render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Estatísticas</FormLabel></FormItem>
+                            )} />
+                            <FormField control={form.control} name="includeFAQ" render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">FAQ</FormLabel></FormItem>
+                            )} />
                           </div>
                         </div>
                       </TabsContent>
                     </Tabs>
-
                     <Separator />
-
                     <div className="flex flex-col gap-3">
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={isGenerating}
-                        size="lg"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                            Gerando sua página...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4"/>
-                            Gerar Landing Page
-                          </>
-                        )}
+                      <Button type="submit" className="w-full" disabled={isGenerating} size="lg">
+                        {isGenerating ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Gerando sua página...</>) : (<><Sparkles className="mr-2 h-4 w-4"/>Gerar Landing Page</>)}
                       </Button>
-
-                      <Button 
-                        type="button"
-                        variant="outline"
-                        onClick={onGenerateVariations}
-                        disabled={isGenerating || !form.getValues().prompt}
-                        className="w-full"
-                      >
-                        {variationsMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                            Criando variações...
-                          </>
-                        ) : (
-                          <>
-                            <Layers className="mr-2 h-4 w-4"/>
-                            Gerar 3 Variações
-                          </>
-                        )}
+                      <Button type="button" variant="outline" onClick={onGenerateVariations} disabled={isGenerating || !form.getValues().prompt} className="w-full">
+                        {variationsMutation.isPending ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Criando variações...</>) : (<><Layers className="mr-2 h-4 w-4"/>Gerar 3 Variações</>)}
                       </Button>
                     </div>
                   </form>
@@ -761,8 +415,6 @@ export default function LandingPages() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Preview */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -770,81 +422,32 @@ export default function LandingPages() {
                   <CardTitle className="flex items-center gap-2">
                     <Eye className="h-5 w-5" />
                     Preview da Landing Page
-                    {previewVariations.length > 0 && (
-                      <Badge variant="secondary">
-                        {activePreview + 1} de {previewVariations.length}</Badge>
-                    )}
+                    {previewVariations.length > 0 && (<Badge variant="secondary">{activePreview + 1} de {previewVariations.length}</Badge>)}
                   </CardTitle>
                   {previewVariations.length > 1 && (
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActivePreview(Math.max(0, activePreview - 1))}
-                        disabled={activePreview === 0}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setActivePreview(Math.min(previewVariations.length - 1, activePreview + 1))}
-                        disabled={activePreview === previewVariations.length - 1}
-                      >
-                        Próxima
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setActivePreview(Math.max(0, activePreview - 1))} disabled={activePreview === 0}>Anterior</Button>
+                      <Button variant="outline" size="sm" onClick={() => setActivePreview(Math.min(previewVariations.length - 1, activePreview + 1))} disabled={activePreview === previewVariations.length - 1}>Próxima</Button>
                     </div>
                   )}
                 </div>
               </CardHeader>
-              
               <CardContent>
                 {getCurrentPreview() ? (
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        onClick={handleEditClick}
-                        disabled={saveAndEditMutation.isPending}
-                        size="sm"
-                      >
-                        {saveAndEditMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Edit className="mr-2 h-4 w-4" />
-                        )}
+                      <Button onClick={handleEditClick} disabled={saveAndEditMutation.isPending} size="sm">
+                        {saveAndEditMutation.isPending ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Edit className="mr-2 h-4 w-4" />)}
                         Salvar e Editar
                       </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={handleOpenInNewTab}
-                        size="sm"
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Abrir em Nova Aba
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        onClick={handleOptimize}
-                        disabled={optimizeMutation.isPending}
-                        size="sm"
-                      >
-                        {optimizeMutation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Zap className="mr-2 h-4 w-4" />
-                        )}
+                      <Button variant="outline" onClick={handleOpenInNewTab} size="sm"><ExternalLink className="mr-2 h-4 w-4" />Abrir em Nova Aba</Button>
+                      <Button variant="outline" onClick={handleOptimize} disabled={optimizeMutation.isPending} size="sm">
+                        {optimizeMutation.isPending ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Zap className="mr-2 h-4 w-4" />)}
                         Otimizar
                       </Button>
                     </div>
-                    
                     <div className="border rounded-lg overflow-hidden">
-                      <iframe
-                        srcDoc={getCurrentPreview()}
-                        className="w-full h-[600px] border-0"
-                        title="Landing Page Preview"
-                      />
+                      <iframe srcDoc={getCurrentPreview()} className="w-full h-[600px] border-0" title="Landing Page Preview" />
                     </div>
                   </div>
                 ) : (
@@ -858,17 +461,10 @@ export default function LandingPages() {
             </Card>
           </div>
         </div>
-
-        {/* Seção de Páginas Existentes */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Rocket className="h-5 w-5" />
-              Suas Landing Pages
-            </CardTitle>
-            <CardDescription>
-              Gerencie e edite suas páginas existentes
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Rocket className="h-5 w-5" />Suas Landing Pages</CardTitle>
+            <CardDescription>Gerencie e edite suas páginas existentes</CardDescription>
           </CardHeader>
           <CardContent>
             {landingPages.length === 0 ? (
@@ -885,54 +481,26 @@ export default function LandingPages() {
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
                           <CardTitle className="text-base">{lp.name}</CardTitle>
-                          <CardDescription className="text-xs">
-                            Criada em {new Date(lp.createdAt).toLocaleDateString('pt-BR')}
-                          </CardDescription>
+                          <CardDescription className="text-xs">Criada em {new Date(lp.createdAt).toLocaleDateString('pt-BR')}</CardDescription>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditExistingLp(lp)}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditExistingLp(lp)}><MoreHorizontal className="h-4 w-4" /></Button>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-3">
-                        {lp.campaignId && (
-                          <Badge variant="outline" className="text-xs">
-                            Campanha: {campaigns.find(c => c.id === lp.campaignId)?.name || 'N/A'}
-                          </Badge>
-                        )}
-                        
+                        {lp.campaignId && (<Badge variant="outline" className="text-xs">Campanha: {campaigns.find(c => c.id === lp.campaignId)?.name || 'N/A'}</Badge>)}
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditExistingLp(lp)}
-                            className="flex-1"
-                          >
-                            <Edit className="mr-2 h-3 w-3" />
-                            Editar
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const htmlContent = lp.grapesJsData?.html || '';
-                              if (htmlContent) {
-                                const newWindow = window.open();
-                                if (newWindow) {
-                                  newWindow.document.write(htmlContent);
-                                  newWindow.document.close();
-                                }
+                          <Button variant="outline" size="sm" onClick={() => handleEditExistingLp(lp)} className="flex-1"><Edit className="mr-2 h-3 w-3" />Editar</Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            const htmlContent = (lp.grapesJsData as any)?.html || '';
+                            if (htmlContent) {
+                              const newWindow = window.open();
+                              if (newWindow) {
+                                newWindow.document.write(htmlContent);
+                                newWindow.document.close();
                               }
-                            }}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
+                            }
+                          }}><ExternalLink className="h-3 w-3" /></Button>
                         </div>
                       </div>
                     </CardContent>
@@ -942,8 +510,6 @@ export default function LandingPages() {
             )}
           </CardContent>
         </Card>
-
-        {/* Footer com Dicas */}
         <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
           <CardContent className="pt-6">
             <div className="text-center space-y-3">
@@ -952,18 +518,10 @@ export default function LandingPages() {
                 <h3 className="font-semibold">Dicas para Melhores Resultados</h3>
               </div>
               <div className="text-sm text-muted-foreground max-w-4xl mx-auto">
-                <p className="mb-2">
-                  • <strong>Seja específico:</strong> Descreva detalhadamente seu produto, público-alvo e objetivos
-                </p>
-                <p className="mb-2">
-                  • <strong>Use referências:</strong> Adicione URLs de páginas que inspiram seu design
-                </p>
-                <p className="mb-2">
-                  • <strong>Teste variações:</strong> Gere múltiplas versões e compare os resultados
-                </p>
-                <p>
-                  • <strong>Otimize sempre:</strong> Use a função de otimização para melhorar conversões
-                </p>
+                <p className="mb-2">• <strong>Seja específico:</strong> Descreva detalhadamente seu produto, público-alvo e objetivos</p>
+                <p className="mb-2">• <strong>Use referências:</strong> Adicione URLs de páginas que inspiram seu design</p>
+                <p className="mb-2">• <strong>Teste variações:</strong> Gere múltiplas versões e compare os resultados</p>
+                <p>• <strong>Otimize sempre:</strong> Use a função de otimização para melhorar conversões</p>
               </div>
             </div>
           </CardContent>
