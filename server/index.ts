@@ -5,11 +5,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { UPLOADS_PATH } from './config.js';
 
 // Configuração de diretórios para ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Configuração padrão para UPLOADS_PATH
+const UPLOADS_PATH = process.env.UPLOADS_PATH || path.join(__dirname, 'uploads');
 
 const app = express();
 const server = createServer(app);
@@ -29,49 +31,22 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Servir arquivos de upload estaticamente
 app.use('/uploads', express.static(UPLOADS_PATH));
 
-// Importações condicionais para evitar erros de build
-let router: any;
-let setupWhatsApp: any;
-let startCronJobs: any;
-let vite: any;
-
-try {
-  // Importação do router
-  const routesModule = await import('./routes.js');
-  router = routesModule.router || routesModule.default;
-} catch (error) {
-  console.warn('⚠️ Não foi possível importar as rotas:', error);
-  router = express.Router();
-}
-
-try {
-  // Importação do serviço WhatsApp
-  const whatsappModule = await import('./services/whatsapp-connection.service.js');
-  setupWhatsApp = whatsappModule.setupWhatsApp || whatsappModule.default;
-} catch (error) {
-  console.warn('⚠️ Não foi possível importar o serviço WhatsApp:', error);
-  setupWhatsApp = () => console.log('WhatsApp service not available');
-}
-
-try {
-  // Importação do serviço Cron
-  const cronModule = await import('./services/cron.service.js');
-  startCronJobs = cronModule.startCronJobs || cronModule.default;
-} catch (error) {
-  console.warn('⚠️ Não foi possível importar o serviço Cron:', error);
-  startCronJobs = () => console.log('Cron service not available');
-}
-
-try {
-  // Importação do Vite (apenas em desenvolvimento)
-  if (process.env.NODE_ENV !== 'production') {
-    const viteModule = await import('./vite.js');
-    vite = viteModule.vite || viteModule.default;
+// Função para carregar módulos opcionais
+async function loadOptionalModule(modulePath: string, exportName?: string) {
+  try {
+    const module = await import(modulePath);
+    return exportName ? module[exportName] : module.default || module;
+  } catch (error) {
+    console.warn(`⚠️ Módulo opcional não encontrado: ${modulePath}`, error.message);
+    return null;
   }
-} catch (error) {
-  console.warn('⚠️ Não foi possível importar o Vite:', error);
-  vite = null;
 }
+
+// Carregar módulos opcionais
+const router = await loadOptionalModule('./routes.js', 'router') || express.Router();
+const setupWhatsApp = await loadOptionalModule('./services/whatsapp-connection.service.js', 'setupWhatsApp') || (() => console.log('WhatsApp service not available'));
+const startCronJobs = await loadOptionalModule('./services/cron.service.js', 'startCronJobs') || (() => console.log('Cron service not available'));
+const vite = process.env.NODE_ENV !== 'production' ? await loadOptionalModule('./vite.js', 'vite') : null;
 
 // Rotas da API
 app.use('/api', router);
