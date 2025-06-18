@@ -858,287 +858,52 @@ class GeminiService {
       LANDING PAGE ATUAL:
       ${currentHtml}
       
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      🎨 DESIGN SYSTEM REVOLUCIONÁRIO
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      ✅ **PALETA DE CORES PREMIUM**:
-      ${JSON.stringify(colors, null, 2)}
-
-      ✅ **TIPOGRAFIA HIERÁRQUICA**:
-      - H1: font-poppins text-5xl md:text-7xl font-black leading-tight
-      - H2: font-poppins text-4xl md:text-6xl font-bold
-      - H3: font-poppins text-3xl md:text-5xl font-semibold
-      - H4: font-inter text-2xl md:text-4xl font-medium
-      - Body: font-inter text-lg md:text-xl leading-relaxed
-      - Small: font-inter text-base md:text-lg
-
-      ✅ **ELEMENTOS VISUAIS AVANÇADOS**:
-      - **Glassmorphism**: backdrop-blur-xl bg-white/10 border border-white/20
-      - **Neumorphism**: Sombras internas e externas suaves
-      - **Gradientes Dinâmicos**: Múltiplas camadas de gradientes
-      - **Animações Fluidas**: Transições suaves de 300-600ms
-      - **Microinterações**: Hover effects sofisticados
-      - **Parallax Scrolling**: Efeitos de profundidade
-      - **Floating Elements**: Elementos decorativos animados
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      📱 RESPONSIVIDADE ULTRA-PREMIUM
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      ✅ **BREAKPOINTS ESTRATÉGICOS**:
-      - **Mobile First**: Base styles para 320px+
-      - **Small**: sm: (640px+) - Layout otimizado para móveis grandes
-      - **Medium**: md: (768px+) - Tablets e pequenos desktops
-      - **Large**: lg: (1024px+) - Desktops médios
-      - **Extra Large**: xl: (1280px+) - Desktops grandes
-      - **2X Large**: 2xl: (1536px+) - Monitores ultrawide
-
-      ✅ **OTIMIZAÇÕES MOBILE-FIRST EXTREMAS**:
-      - Touch targets mínimo de 48px
-      - Texto legível sem zoom (18px+ base mobile)
-      - Navegação thumb-friendly
-      - Swipe gestures intuitivos
-      - Performance otimizada para 3G
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      🏗️ ARQUITETURA DE SEÇÕES ÉPICAS
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      **1. 🔝 HEADER MAGNÉTICO**:
-      - Logo premium com animação sutil
-      - Navegação sticky com backdrop-blur
-      - Menu hamburger com animação fluida
-      - CTA no header com urgência
-      - Progress bar de scroll (opcional)
-      - Tema switcher (dark/light)
-
-      **2. 🚀 HERO SECTION DEVASTADORA**:
-      - Headline que para o tráfego (power words + números)
-      - Subheadline com benefício claro
-      - Triplo CTA (primário + secundário + ghost)
-      - Hero visual de impacto (video/imagem/animação)
-      - Prova social imediata (logos, números, reviews)
-      - Scroll indicator animado
-      - Floating elements decorativos
-      - Gradiente de fundo dinâmico
-
-      **3. 💎 SEÇÃO DE VALOR ÚNICO**:
-      - Value proposition em destaque
-      - 3-6 benefícios principais com ícones SVG
-      - Comparação visual (antes/depois)
-      - Estatísticas impressionantes
-      - Animações on-scroll
-      - Cards com hover effects
-
-      **4. 🎯 RECURSOS/FUNCIONALIDADES PREMIUM**:
-      - Grid responsivo de features
-      - Cada feature com ícone SVG único
-      - Microcopy persuasivo
-      - Hover effects elaborados
-      - Modal ou expandir para detalhes
-      - Animações escalonadas
-
-      **5. 📊 PROVA SOCIAL PODEROSA**:
-      - Testimonials com fotos reais (placeholders de alta qualidade)
-      - Rating system com estrelas animadas
-      - Logos de clientes/parceiros em carrossel
-      - Números de impacto com counter animations
-      - Reviews em cards com glassmorphism
-      - Trust badges e certificações
-
-      **6. 💰 SEÇÃO DE PREÇOS IRRESISTÍVEL**:
-      - Cards de pricing com destaque 3D
-      - Comparação de planos visual
-      - Badge "Mais Popular" animado
-      - Calculator de ROI interativo
-      - Garantias com ícones de segurança
-      - Urgência com countdown timer
-
-      **7. ❓ FAQ ESTRATÉGICO INTELIGENTE**:
-      - Accordion com animações suaves
-      - Perguntas que eliminam objeções
-      - Respostas que reforçam benefícios
-      - Search dentro do FAQ
-      - Categorização por tópicos
-
-      **8. 🔥 CTA FINAL APOCALÍPTICO**:
-      - Urgência e escassez visual
-      - Benefício final destacado
-      - Múltiplas opções de conversão
-      - Garantias de segurança
-      - Risk reversal statements
-      - Elementos pulsantes/brilhantes
-
-      **9. 🌐 FOOTER COMPLETO E FUNCIONAL**:
-      - Links organizados por categorias
-      - Redes sociais com ícones SVG animados
-      - Newsletter signup com incentivo
-      - Mapa do site
-      - Informações legais completas
-      - Contato com múltiplos canais
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      ⚡ ANIMAÇÕES E MICROINTERAÇÕES ULTRA-AVANÇADAS
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      ✅ **NÍVEL DE ANIMAÇÃO: ${options.animationsLevel || 'dynamic'}**
-
-      **Animações CSS Ultra-Personalizadas**:
-      - Intersection Observer para scroll animations
-      - Stagger animations para elementos em grupo
-      - Hover effects com transforms 3D
-      - Loading states com skeleton screens
-      - Parallax scrolling com performance otimizada
-      - Morphing shapes e elementos
-      - Particle systems com CSS puro
-      - Gradient animations dinâmicos
-
-      **Microinterações Obrigatórias**:
-      - Botões com ripple effect
-      - Cards com tilt effect no hover
-      - Form inputs com floating labels
-      - Progress indicators animados
-      - Menu transitions cinematográficas
-      - Scroll progress indicator
-      - Image zoom on hover
-      - Icon morphing animations
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      📈 OTIMIZAÇÃO PARA CONVERSÃO EXTREMA
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      ✅ **TÉCNICAS DE NEUROMARKETING AVANÇADAS**:
-      - Cores que geram ação (vermelho/laranja para CTAs)
-      - Psicologia das cores por seção
-      - Escassez e urgência visuais
-      - Prova social abundante e variada  
-      - Hierarquia visual clara (padrão Z/F)
-      - Anchoring com preços
-      - Loss aversion elements
-      - Social proof diversity
-
-      ✅ **COPYWRITING PERSUASIVO EXTREMO**:
-      - Headlines com fórmulas comprovadas (AIDA, PAS, etc.)
-      - Power words estratégicos
-      - Benefícios focados no resultado final
-      - Linguagem emocional + lógica
-      - CTAs com urgência específica
-      - Storytelling micro-narratives
-      - Numbers e statistics
-      - Risk reversal statements
-
-      ✅ **UX PATTERNS COMPROVADOS**:
-      - Above the fold otimizado para conversão
-      - Formulários progressivos
-      - Trust signals estratégicos
-      - Mobile-first conversion flow
-      - Exit-intent elements
-      - Progressive disclosure
-      - Cognitive load reduction
-      - Decision fatigue elimination
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      🛡️ PERFORMANCE E ACESSIBILIDADE EXTREMAS
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      **Performance Ultra-Otimizada**:
-      - Critical CSS inline
-      - Lazy loading inteligente
-      - Image optimization automática
-      - Font display: swap
-      - Resource hints (preload, prefetch)
-      - Minificação agressiva
-      - Compression otimizada
-      - Core Web Vitals perfeitos
-
-      **Acessibilidade WCAG AAA**:
-      - Contraste superior a 7:1
-      - Alt texts descritivos e contextuais  
-      - Navegação por teclado completa
-      - Screen reader optimization
-      - Focus indicators visíveis
-      - ARIA labels completos
-      - Color contrast verification
-      - Motion reduction respect
-
-      **SEO Ultra-Avançado**:
-      - Meta tags completas e otimizadas
-      - Schema markup estruturado
-      - Open Graph completo
-      - Twitter Cards otimizados
-      - Sitemap XML automático
-      - Robots.txt otimizado
-      - Internal linking strategy
-      - Page speed optimization
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      💡 PERSONALIZAÇÃO INTELIGENTE
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      **Configurações Atuais**:
-      - **Estilo**: ${options.style || 'modern'}
-      - **Esquema de Cores**: ${options.colorScheme || 'dark'}
-      - **Indústria**: ${options.industry || 'tecnologia'}
-      - **Público-alvo**: ${options.targetAudience || 'profissionais'}
-      - **Personalidade da Marca**: ${options.brandPersonality || 'innovative'}
-      - **Layout**: ${options.layout || 'multi-section'}
-      - **CTA Primário**: ${options.primaryCTA || 'Começar Agora'}
-      - **CTA Secundário**: ${options.secondaryCTA || 'Saber Mais'}
-
-      **Elementos Incluídos**:
-      - Depoimentos: ${options.includeTestimonials !== false ? '✅' : '❌'}
-      - Preços: ${options.includePricing ? '✅' : '❌'}
-      - Estatísticas: ${options.includeStats !== false ? '✅' : '❌'}
-      - FAQ: ${options.includeFAQ !== false ? '✅' : '❌'}
-      - Vídeo: ${options.includeVideo ? '✅' : '❌'}
-      - Newsletter: ${options.includeNewsletter !== false ? '✅' : '❌'}
-      - Blog: ${options.includeBlog ? '✅' : '❌'}
-      - Features: ${options.includeFeatures !== false ? '✅' : '❌'}
-
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-      🎯 COMANDO FINAL SUPREMO
-      ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-      Crie uma landing page que seja:
-
-      1. **VISUALMENTE TRANSCENDENTAL** 
-         - Design que faça as pessoas pararem de scrollar
-         - Elementos visuais únicos e memoráveis
-         - Composição artística profissional
-
-      2. **TECNICAMENTE IMPECÁVEL**
-         - Código limpo, semântico e otimizado
-         - Performance de carregamento instantâneo  
-         - Responsividade perfeita em todos os dispositivos
-
-      3. **COMERCIALMENTE DEVASTADORA**
-         - Focada obsessivamente em conversão
-         - Cada elemento pensado para gerar ação
-         - Psychology triggers estratégicos
-
-      4. **EXPERIÊNCIA PREMIUM**
-         - Interações fluidas e intuitivas
-         - Jornada do usuário sem fricção
-         - Detalhes que surpreendem positivamente
-
-      5. **ÚNICA E INESQUECÍVEL**
-         - Que se destaque completamente da concorrência
-         - Elementos de marca forte e consistente
-         - Proposta de valor cristalina
-
-      **INSTRUÇÕES CRÍTICAS FINAIS**:
-      - Use placeholders de imagem de ALTA QUALIDADE do https://placehold.co/
-      - Implemente TODOS os elementos visuais descritos
-      - Crie conteúdo PERSUASIVO e ESPECÍFICO para a indústria
-      - Otimize OBSESSIVAMENTE para conversão
-      - Código deve ser PERFEITO e FUNCIONAL
-
-      **FORMATO DE RESPOSTA**: 
-      Começar IMEDIATAMENTE com "<!DOCTYPE html>" sem nenhum texto explicativo.
+      OTIMIZAÇÕES OBRIGATÓRIAS ULTRA-AVANÇADAS:
+      
+      🚀 CONVERSÃO:
+      - Melhore todos os CTAs com urgência e especificidade
+      - Adicione elementos de escassez visual
+      - Otimize a hierarquia visual para o padrão F/Z
+      - Implemente social proof mais convincente
+      - Adicione risk reversal statements
+      - Melhore as headlines com power words
+      - Adicione trust signals estratégicos
+      
+      ⚡ PERFORMANCE:
+      - Otimize Critical CSS inline
+      - Implemente lazy loading inteligente
+      - Adicione resource hints apropriados
+      - Otimize imagens com placeholders melhores
+      - Minimize JavaScript e CSS
+      - Implemente font-display: swap
+      
+      ♿ ACESSIBILIDADE:
+      - Melhore contraste de cores (WCAG AAA)
+      - Adicione ARIA labels completos
+      - Implemente navegação por teclado perfeita
+      - Melhore alt texts das imagens
+      - Adicione skip links
+      - Otimize para screen readers
+      
+      🔍 SEO:
+      - Otimize meta tags para cliques
+      - Adicione schema markup estruturado
+      - Melhore internal linking
+      - Otimize URLs e anchors
+      - Adicione breadcrumbs se aplicável
+      - Melhore semântica HTML5
+      
+      🎨 UX/UI:
+      - Melhore microinterações
+      - Otimize formulários para conversão
+      - Adicione estados de loading elegantes
+      - Melhore responsive design
+      - Otimize touch targets para mobile
+      - Adicione feedback visual instantâneo
+      
+      RESULTADO: Retorne APENAS o HTML otimizado completo, sem explicações.
+      Início obrigatório: "<!DOCTYPE html>"
     `;
-  }
 
     try {
       const result = await model.generateContent(optimizationPrompt);
