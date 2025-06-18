@@ -208,14 +208,13 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
   useEffect(() => {
     setIsLoading(true);
+
+    const initialComponents: EditorComponent[] = [];
     if (initialData?.components && Array.isArray(initialData.components) && initialData.components.length > 0) {
-        const loadedComponents = initialData.components as EditorComponent[];
-        setComponents(loadedComponents);
-        saveToHistory(loadedComponents);
+        initialComponents.push(...(initialData.components as EditorComponent[]));
     } else if (initialData?.html) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = initialData.html;
-        const parsedComponents: EditorComponent[] = [];
         let componentIndex = 0;
         const body = tempDiv.querySelector('body') || tempDiv;
 
@@ -234,28 +233,33 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
             else if (tagName === 'img') type = 'image';
             else if (tagName === 'button') type = 'button';
 
-            parsedComponents.push({
+            initialComponents.push({
                 id: `comp_${componentIndex++}`,
                 type,
                 content: element.innerHTML,
                 styles,
             });
         });
-        
-        setComponents(parsedComponents);
-        saveToHistory(parsedComponents);
     } else {
-        const defaultComponents = [{
+        initialComponents.push({
             id: 'hero_1',
             type: 'hero',
             content: COMPONENT_TYPES.hero.defaultContent,
             styles: COMPONENT_TYPES.hero.defaultStyles
-        }];
-        setComponents(defaultComponents);
-        saveToHistory(defaultComponents);
+        });
     }
+    
+    setComponents(initialComponents);
+    const initialState: HistoryState = {
+        components: JSON.parse(JSON.stringify(initialComponents)),
+        timestamp: Date.now()
+    };
+    setHistory([initialState]);
+    setHistoryIndex(0);
+
     setIsLoading(false);
-  }, [initialData, saveToHistory]);
+  // [CORREÇÃO] A dependência de `saveToHistory` foi removida para quebrar o loop infinito de renderização.
+  }, [initialData]);
 
   const addComponent = (type: keyof typeof COMPONENT_TYPES) => {
     const componentType = COMPONENT_TYPES[type];
@@ -424,7 +428,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
         <div className="flex-1 flex flex-col bg-gray-950">
           <div className="flex-1 overflow-auto p-8" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}>
-            <div className="max-w-4xl mx-auto bg-gray-800 min-h-full shadow-lg rounded-lg overflow-hidden ring-1 ring-gray-700">
+            <div className="max-w-4xl mx-auto bg-white min-h-full shadow-lg rounded-lg overflow-hidden ring-1 ring-gray-700">
               {components.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-gray-500 text-center"><Plus className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Adicione componentes para começar</p></div>
               ) : (
