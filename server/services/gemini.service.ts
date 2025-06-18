@@ -966,5 +966,77 @@ class GeminiService {
     }
   }
 }
+ // Método para gerar múltiplas variações
+  public async generateVariations(
+    prompt: string,
+    count: number = 3,
+    baseOptions: LandingPageOptions = {}
+  ): Promise<string[]> {
+    const variations: string[] = [];
+    const styles: Array<LandingPageOptions['style']> = ['modern', 'minimal', 'bold', 'elegant', 'tech'];
+    const colorSchemes: Array<LandingPageOptions['colorScheme']> = ['dark', 'gradient', 'neon', 'ocean'];
+
+    for (let i = 0; i < count; i++) {
+      const options: LandingPageOptions = {
+        ...baseOptions,
+        style: styles[i % styles.length],
+        colorScheme: colorSchemes[i % colorSchemes.length],
+        animationsLevel: i === 0 ? 'dynamic' : i === 1 ? 'moderate' : 'subtle'
+      };
+
+      try {
+        const variation = await this.createAdvancedLandingPage(prompt, options);
+        variations.push(variation);
+      } catch (error) {
+        console.error(`Erro ao gerar variação ${i + 1}:`, error);
+      }
+    }
+
+    return variations;
+  }
+
+  // Método para otimizar landing page existente
+  public async optimizeLandingPage(
+    currentHtml: string,
+    optimizationGoals: string[] = ['conversion', 'performance', 'accessibility']
+  ): Promise<string> {
+    if (!this.genAI) {
+      throw new Error('A API Key do Gemini não está configurada no servidor.');
+    }
+
+    const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+
+    const optimizationPrompt = `
+      Você é um especialista em OTIMIZAÇÃO DE CONVERSÃO e PERFORMANCE WEB.
+      
+      Analise a landing page fornecida e aplique as seguintes otimizações:
+      ${optimizationGoals.map(goal => `- ${goal.toUpperCase()}`).join('\n')}
+      
+      LANDING PAGE ATUAL:
+      ${currentHtml}
+      
+      OTIMIZAÇÕES OBRIGATÓRIAS:
+      1. Melhore os CTAs para aumentar conversão
+      2. Otimize a hierarquia visual
+      3. Adicione elementos de urgência e escassez
+      4. Melhore a prova social
+      5. Otimize para mobile
+      6. Adicione microinterações
+      7. Melhore o SEO on-page
+      8. Otimize a velocidade de carregamento
+      
+      Retorne APENAS o HTML otimizado, sem explicações.
+    `;
+
+    try {
+      const result = await model.generateContent(optimizationPrompt);
+      const response = result.response;
+      return response.text();
+    } catch (error: any) {
+      console.error('[GeminiService] Erro ao otimizar landing page:', error);
+      throw new Error(`Falha ao otimizar landing page: ${error.message}`);
+    }
+  }
+}
 
 export const geminiService = new GeminiService(GEMINI_API_KEY);
