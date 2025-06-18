@@ -1,19 +1,24 @@
-// server/services/gemini.service.ts
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import { GEMINI_API_KEY } from '../config';
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} from "@google/generative-ai";
+import {
+  GEMINI_API_KEY
+} from '../config';
 
 interface LandingPageOptions {
-  style?: 'modern' | 'minimal' | 'bold' | 'elegant' | 'tech' | 'startup';
-  colorScheme?: 'dark' | 'light' | 'gradient' | 'neon' | 'earth' | 'ocean';
-  industry?: string;
-  targetAudience?: string;
-  primaryCTA?: string;
-  secondaryCTA?: string;
-  includeTestimonials?: boolean;
-  includePricing?: boolean;
-  includeStats?: boolean;
-  includeFAQ?: boolean;
-  animationsLevel?: 'none' | 'subtle' | 'moderate' | 'dynamic';
+  style ? : 'modern' | 'minimal' | 'bold' | 'elegant' | 'tech' | 'startup';
+  colorScheme ? : 'dark' | 'light' | 'gradient' | 'neon' | 'earth' | 'ocean';
+  industry ? : string;
+  targetAudience ? : string;
+  primaryCTA ? : string;
+  secondaryCTA ? : string;
+  includeTestimonials ? : boolean;
+  includePricing ? : boolean;
+  includeStats ? : boolean;
+  includeFAQ ? : boolean;
+  animationsLevel ? : 'none' | 'subtle' | 'moderate' | 'dynamic';
 }
 
 class GeminiService {
@@ -25,6 +30,24 @@ class GeminiService {
       return;
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
+  }
+
+  // ✅ MÉTODO ADICIONADO PARA CORRIGIR O ERRO DO DASHBOARD
+  public async generateText(prompt: string): Promise < string > {
+    if (!this.genAI) {
+      throw new Error('A API Key do Gemini não está configurada no servidor.');
+    }
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-1.5-pro-latest"
+    });
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error: any) {
+      console.error('[GeminiService] Erro ao gerar texto simples:', error);
+      throw new Error(`Falha ao gerar texto: ${error.message}`);
+    }
   }
 
   private getColorScheme(scheme: string): any {
@@ -75,10 +98,9 @@ class GeminiService {
     return schemes[scheme as keyof typeof schemes] || schemes.dark;
   }
 
-  // ✅ CORREÇÃO: Acentos graves (backticks) foram "escapados" com uma barra invertida (\`)
   private getAdvancedSystemPrompt(options: LandingPageOptions): string {
     const colors = this.getColorScheme(options.colorScheme || 'dark');
-    
+
     return `
       Você é um EXPERT FRONTEND ARCHITECT e CONVERSION OPTIMIZATION SPECIALIST, especializado em criar landing pages que convertem visitantes em clientes usando as mais avançadas técnicas de UI/UX, neuromarketing e desenvolvimento web moderno.
 
@@ -89,7 +111,6 @@ class GeminiService {
       ═══════════════════════════════════════════════════════════════
 
       ✅ **FORMATO DE SAÍDA ABSOLUTO**:
-      - APENAS código HTML puro, de "<!DOCTYPE html>" até "</html>"
       - ZERO texto explicativo, ZERO markdown, ZERO comentários externos
       - Código deve ser 100% funcional e renderizável imediatamente
 
@@ -323,32 +344,27 @@ class GeminiService {
   public async createAdvancedLandingPage(
     prompt: string,
     options: LandingPageOptions = {},
-    reference?: string
-  ): Promise<string> {
+    reference ? : string
+  ): Promise < string > {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
     }
 
-    const model = this.genAI.getGenerativeModel({ 
+    const model = this.genAI.getGenerativeModel({
       model: "gemini-1.5-pro-latest",
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-      ],
+      safetySettings: [{
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, ],
     });
 
     const systemPrompt = this.getAdvancedSystemPrompt(options);
@@ -393,7 +409,7 @@ class GeminiService {
           .replace(/```html\n?/g, '')
           .replace(/```/g, '')
           .trim();
-        
+
         // Se não começar com DOCTYPE, adiciona estrutura básica
         if (!htmlContent.startsWith('<!DOCTYPE html>')) {
           htmlContent = `<!DOCTYPE html>\n${htmlContent}`;
@@ -410,8 +426,8 @@ class GeminiService {
   // Método de compatibilidade com a versão anterior
   public async createLandingPageFromPrompt(
     prompt: string,
-    reference?: string
-  ): Promise<string> {
+    reference ? : string
+  ): Promise < string > {
     return this.createAdvancedLandingPage(prompt, {
       style: 'modern',
       colorScheme: 'dark',
@@ -424,10 +440,10 @@ class GeminiService {
     prompt: string,
     count: number = 3,
     baseOptions: LandingPageOptions = {}
-  ): Promise<string[]> {
+  ): Promise < string[] > {
     const variations: string[] = [];
-    const styles: Array<LandingPageOptions['style']> = ['modern', 'minimal', 'bold', 'elegant', 'tech'];
-    const colorSchemes: Array<LandingPageOptions['colorScheme']> = ['dark', 'gradient', 'neon', 'ocean'];
+    const styles: Array < LandingPageOptions['style'] > = ['modern', 'minimal', 'bold', 'elegant', 'tech'];
+    const colorSchemes: Array < LandingPageOptions['colorScheme'] > = ['dark', 'gradient', 'neon', 'ocean'];
 
     for (let i = 0; i < count; i++) {
       const options: LandingPageOptions = {
@@ -452,12 +468,14 @@ class GeminiService {
   public async optimizeLandingPage(
     currentHtml: string,
     optimizationGoals: string[] = ['conversion', 'performance', 'accessibility']
-  ): Promise<string> {
+  ): Promise < string > {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
     }
 
-    const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-1.5-pro-latest"
+    });
 
     const optimizationPrompt = `
       Você é um especialista em OTIMIZAÇÃO DE CONVERSÃO e PERFORMANCE WEB.
