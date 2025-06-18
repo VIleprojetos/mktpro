@@ -9,9 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import fbg from '@/img/fbg.png';
 import {
     DollarSign,
     Target,
@@ -25,6 +22,14 @@ import {
     Save,
     Loader2
 } from 'lucide-react';
+
+// Declaração de tipos globais para as bibliotecas carregadas via script
+declare global {
+    interface Window {
+        jspdf: any;
+        html2canvas: any;
+    }
+}
 
 // --- Tipos e Interfaces ---
 interface LaunchInputs {
@@ -292,10 +297,22 @@ export default function LaunchSimulatorPage() {
     };
 
     const handleExportPdf = () => {
+        const { jsPDF } = window.jspdf;
+        const html2canvas = window.html2canvas;
+
+        if (!jsPDF || !html2canvas) {
+            toast({ title: "Erro", description: "As bibliotecas de exportação não foram carregadas.", variant: "destructive" });
+            return;
+        }
+
         const input = resultsRef.current;
         if (input) {
             toast({ title: "A gerar PDF...", description: "Por favor, aguarde.", className: "holographic-card-dark" });
-            html2canvas(input, { backgroundColor: '#0A0F1F', useCORS: true }).then(canvas => {
+            html2canvas(input, { 
+                backgroundColor: '#0A0F1F', 
+                useCORS: true, 
+                scale: 2 
+            }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -309,7 +326,7 @@ export default function LaunchSimulatorPage() {
     return (
         <>
             <style>{`:root { --neon-cyan: #00f6ff; --neon-blue: #00bfff; }
-                .holographic-body-container { background-image: url(${fbg}); background-size: cover; background-position: center; background-attachment: fixed; }
+                .holographic-body-container { background: #0A0F1F; }
                 .holographic-card { background: rgba(18, 28, 58, 0.5); border: 1px solid rgba(0, 191, 255, 0.3); backdrop-filter: blur(8px); box-shadow: 0 0 15px rgba(0, 191, 255, 0.1), 0 0 30px rgba(0, 191, 255, 0.1); transition: all 0.3s ease; }
                 .holographic-card:hover { border-color: rgba(0, 191, 255, 0.7); box-shadow: 0 0 20px rgba(0, 191, 255, 0.3), 0 0 40px rgba(0, 191, 255, 0.2); }
                 .holographic-card-dark { background: rgba(10, 15, 31, 0.8); border: 1px solid rgba(0, 191, 255, 0.5); color: #fff; }
@@ -326,7 +343,7 @@ export default function LaunchSimulatorPage() {
                 @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
                 @keyframes float-segment { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.02); opacity: 0.95; } }
             `}</style>
-            <div className="min-h-screen holographic-body-container text-gray-200 p-4 sm:p-6 lg:p-8 font-sans">
+            <div className="min-h-screen holographic-body-container text-gray-200 p-4 sm:p-6 lg:p-8 font-sans" style={{ background: '#0A0F1F' }}>
                 <div className="relative z-10">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl lg:text-5xl font-bold text-white neon-text-strong">Simulador de Lançamento Digital</h1>
