@@ -75,7 +75,6 @@ class GeminiService {
     return schemes[scheme as keyof typeof schemes] || schemes.dark;
   }
 
-  // ✅ CORREÇÃO: Acentos graves (backticks) foram "escapados" com uma barra invertida (\`)
   private getAdvancedSystemPrompt(options: LandingPageOptions): string {
     const colors = this.getColorScheme(options.colorScheme || 'dark');
     
@@ -176,6 +175,8 @@ class GeminiService {
       ═══════════════════════════════════════════════════════════════
       🏗️ ARQUITETURA DE SEÇÕES OBRIGATÓRIAS
       ═══════════════════════════════════════════════════════════════
+      
+      **REQUISITO CRÍTICO**: A página gerada DEVE OBRIGATORIAMENTE conter no mínimo 6 seções para garantir uma estrutura completa de lançamento digital, seguindo a arquitetura abaixo.
 
       **1. 🔝 HEADER INTELIGENTE**:
       - Logo + navegação sticky com backdrop-blur
