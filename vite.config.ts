@@ -43,13 +43,13 @@ export default defineConfig(({ command, mode }) => {
     build: {
       outDir: path.resolve(__dirname, "dist/public"),
       emptyOutDir: true,
-      // Remove the external configuration - let Vite handle bundling
+      // Remover as configurações do GrapesJS
       rollupOptions: {
         output: {
           manualChunks: {
-            // Split large dependencies into separate chunks
-            'grapesjs': ['@grapesjs/studio-sdk'],
-            'grapesjs-plugins': ['@grapesjs/studio-sdk-plugins'],
+            // Apenas dependências que você realmente usa
+            'vendor': ['react', 'react-dom'],
+            'ui': ['lucide-react'],
           }
         }
       },
@@ -64,11 +64,12 @@ export default defineConfig(({ command, mode }) => {
         '.all-hands.dev', '.prod-runtime.all-hands.dev'
       ],
     },
-    // Help Vite handle the GrapesJS packages
+    // Remover as dependências do GrapesJS
     optimizeDeps: {
       include: [
-        '@grapesjs/studio-sdk',
-        '@grapesjs/studio-sdk-plugins'
+        'react',
+        'react-dom',
+        'lucide-react'
       ],
     },
   };
