@@ -47,6 +47,14 @@ interface ConversionAnalysis {
   weaknesses: string[];
 }
 
+interface VariationOptions {
+  elementType: 'headline' | 'cta' | 'description' | 'testimonial' | 'pricing' | 'feature';
+  currentText: string;
+  targetAudience?: string;
+  industry?: string;
+  tone?: 'professional' | 'casual' | 'urgent' | 'friendly' | 'authoritative';
+}
+
 class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
 
@@ -450,9 +458,6 @@ class GeminiService {
       - Gradiente de fundo dinâmico
 
       **3. 💎 SEÇÃO DE VALOR ÚNICO**:
-      - Value proposition em destaque
-      - 3-6 benefícios principais com ícones SVG
-      - Comparação visual (antes/depois)
       - Estatísticas impressionantes
       - Animações on-scroll
       - Cards com hover effects
