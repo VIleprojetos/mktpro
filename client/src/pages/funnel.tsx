@@ -1,5 +1,5 @@
-// client/src/pages/LaunchSimulator.tsx
-import React, { useState, useMemo, useRef } from 'react';
+// client/src/pages/funnel.tsx
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from '@/lib/api'; // Corrigido para usar alias
+import { apiRequest } from '@/lib/api';
 import {
     DollarSign,
     Target,
@@ -24,7 +24,8 @@ import {
     Loader2
 } from 'lucide-react';
 
-// Declaração de tipos globais para as bibliotecas carregadas via script
+// --- Declaração de Tipos para Bibliotecas Globais ---
+// Isso informa ao TypeScript sobre as bibliotecas carregadas via script no index.html
 declare global {
     interface Window {
         jspdf: any;
@@ -56,7 +57,7 @@ interface FunnelStageData {
     label: string;
     value: number;
     conversionRate: number;
-    faturamento?: number; 
+    faturamento?: number;
 }
 
 // --- Estado Inicial ---
@@ -87,7 +88,7 @@ const InputField = ({ label, id, value, onChange, unit = "R$", type = "number", 
             {helpText && (
                 <TooltipProvider delayDuration={0}>
                     <Tooltip>
-                        <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-blue-400 cursor-help" /></TooltipTrigger>
+                        <TooltipTrigger asChild><button type="button" className="focus:outline-none"><HelpCircle className="h-4 w-4 text-blue-400 cursor-help" /></button></TooltipTrigger>
                         <TooltipContent className="holographic-card-dark"><p>{helpText}</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -101,6 +102,7 @@ const InputField = ({ label, id, value, onChange, unit = "R$", type = "number", 
                 value={value}
                 onChange={(e) => onChange(id, parseFloat(e.target.value) || 0)}
                 className="holographic-input"
+                step={type === 'number' ? '0.01' : undefined}
             />
         </div>
     </div>
@@ -113,7 +115,7 @@ const SliderField = ({ label, id, value, onChange, helpText }: { label: string, 
             {helpText && (
                  <TooltipProvider delayDuration={0}>
                     <Tooltip>
-                        <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-blue-400 cursor-help" /></TooltipTrigger>
+                        <TooltipTrigger asChild><button type="button" className="focus:outline-none"><HelpCircle className="h-4 w-4 text-blue-400 cursor-help" /></button></TooltipTrigger>
                         <TooltipContent className="holographic-card-dark"><p>{helpText}</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -154,8 +156,9 @@ const Funnel3D = ({ data, roas }: { data: FunnelStageData[], roas: number }) => 
     const ELLIPSE_RY = 20;
     const BASE_HEIGHT = 60;
     const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    
-    const maxVal = data.length > 0 ? data[0].value : 1;
+
+    // Garante que maxVal nunca seja 0 para evitar divisão por zero.
+    const maxVal = data.length > 0 && data[0].value > 0 ? data[0].value : 1;
     
     const getWidth = (value: number) => {
         if (maxVal === 0) return 0;
@@ -185,8 +188,14 @@ const Funnel3D = ({ data, roas }: { data: FunnelStageData[], roas: number }) => 
         };
     });
     
-    const lastSegment = segments[segments.length - 1];
+    // CORREÇÃO: Adiciona verificação para evitar erro se `segments` estiver vazio.
+    const lastSegment = segments.length > 0 ? segments[segments.length - 1] : null;
     const financialBaseY = lastSegment ? lastSegment.topY + SEGMENT_HEIGHT + ELLIPSE_RY : VIEWBOX_HEIGHT - BASE_HEIGHT;
+
+    // CORREÇÃO: Adiciona uma verificação para `data` antes de mapear.
+    if (!data || data.length === 0) {
+        return <div className="text-center text-gray-400">Dados insuficientes para exibir o funil.</div>;
+    }
 
     return (
         <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} width="100%" height="100%">
@@ -239,6 +248,7 @@ export default function LaunchSimulatorPage() {
     };
 
     const calculations = useMemo(() => {
+        // CORREÇÃO: Adiciona verificações para evitar divisão por zero
         const leadsGerados = inputs.cplEstimado > 0 ? (inputs.investimentoTráfego / inputs.cplEstimado) + inputs.listaEmailsExistente : inputs.listaEmailsExistente;
         const leadsAquecidos = leadsGerados * (inputs.taxaParticipacaoCPL / 100);
         const visitantesPaginaVendas = leadsAquecidos * (inputs.taxaCliquesPaginaVendas / 100);
@@ -383,27 +393,27 @@ export default function LaunchSimulatorPage() {
                                 <CardHeader><CardTitle className="text-xl text-white neon-text-strong">Projeções e Análise</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <FinancialCard title="Faturação Bruta" value={formatCurrency(calculations.faturamentoBruto)} icon={DollarSign} />
-                                        <FinancialCard title="Lucro Líquido" value={formatCurrency(calculations.lucroLiquido)} icon={TrendingUp} />
+                                        <FinancialCard title="Faturação Bruta" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.faturamentoBruto)} icon={DollarSign} />
+                                        <FinancialCard title="Lucro Líquido" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.lucroLiquido)} icon={TrendingUp} />
                                         <FinancialCard title="ROAS" value={`${calculations.roas.toFixed(2)}x`} icon={BarChart} />
-                                        <FinancialCard title="CAC" value={formatCurrency(calculations.cac)} icon={Target} />
-                                        <FinancialCard title="Ticket Médio" value={formatCurrency(calculations.ticketMedio)} icon={ShoppingCart} />
+                                        <FinancialCard title="CAC" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.cac)} icon={Target} />
+                                        <FinancialCard title="Ticket Médio" value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.ticketMedio)} icon={ShoppingCart} />
                                         <FinancialCard title="Vendas" value={calculations.vendasRealizadas.toString()} icon={Users} />
                                     </div>
                                     <Accordion type="single" collapsible className="w-full">
                                         <AccordionItem value="financial-details">
                                             <AccordionTrigger className="text-cyan-300">Detalhamento Financeiro</AccordionTrigger>
                                             <AccordionContent className="text-sm space-y-2 pt-4">
-                                                <div className="flex justify-between"><span>Receita Principal:</span> <span className="font-medium">{formatCurrency(calculations.receitaProdutoPrincipal)}</span></div>
-                                                <div className="flex justify-between"><span>Receita Order Bump:</span> <span className="font-medium text-green-400">+ {formatCurrency(calculations.receitaOrderBump)}</span></div>
-                                                <div className="flex justify-between"><span>Receita Upsell:</span> <span className="font-medium text-green-400">+ {formatCurrency(calculations.receitaUpsell)}</span></div>
+                                                <div className="flex justify-between"><span>Receita Principal:</span> <span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.receitaProdutoPrincipal)}</span></div>
+                                                <div className="flex justify-between"><span>Receita Order Bump:</span> <span className="font-medium text-green-400">+ {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.receitaOrderBump)}</span></div>
+                                                <div className="flex justify-between"><span>Receita Upsell:</span> <span className="font-medium text-green-400">+ {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.receitaUpsell)}</span></div>
                                                 <hr className="border-blue-500/20 my-2" />
-                                                <div className="flex justify-between font-bold"><span>Faturação Bruta:</span> <span>{formatCurrency(calculations.faturamentoBruto)}</span></div>
-                                                <div className="flex justify-between text-red-400"><span>- Tráfego:</span> <span>{formatCurrency(inputs.investimentoTráfego)}</span></div>
-                                                <div className="flex justify-between text-red-400"><span>- Taxas:</span> <span>{formatCurrency(calculations.custoTaxas)}</span></div>
-                                                <div className="flex justify-between text-red-400"><span>- Reembolsos:</span> <span>{formatCurrency(calculations.custoReembolso)}</span></div>
+                                                <div className="flex justify-between font-bold"><span>Faturação Bruta:</span> <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.faturamentoBruto)}</span></div>
+                                                <div className="flex justify-between text-red-400"><span>- Tráfego:</span> <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(inputs.investimentoTráfego)}</span></div>
+                                                <div className="flex justify-between text-red-400"><span>- Taxas:</span> <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.custoTaxas)}</span></div>
+                                                <div className="flex justify-between text-red-400"><span>- Reembolsos:</span> <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.custoReembolso)}</span></div>
                                                 <hr className="border-blue-500/20 my-2" />
-                                                <div className="flex justify-between font-bold text-xl text-green-300"><span>Lucro Líquido:</span> <span>{formatCurrency(calculations.lucroLiquido)}</span></div>
+                                                <div className="flex justify-between font-bold text-xl text-green-300"><span>Lucro Líquido:</span> <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculations.lucroLiquido)}</span></div>
                                             </AccordionContent>
                                         </AccordionItem>
                                     </Accordion>
