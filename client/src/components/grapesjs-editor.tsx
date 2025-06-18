@@ -4,9 +4,9 @@ import grapesjs, { Editor } from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
 import grapesjsPresetWebpage from 'grapesjs-preset-webpage';
 import grapesjsTailwind from 'grapesjs-tailwind';
-import { useToast } from '@/hooks/use-toast'; // Importar o hook de toast
-import JSZip from 'jszip'; // Importar JSZip para criar o arquivo .zip
-import { saveAs } from 'file-saver'; // Importar file-saver para iniciar o download
+import { useToast } from '@/hooks/use-toast';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface GrapesJsEditorProps {
   initialData?: { html: string; css: string };
@@ -22,8 +22,6 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
   useEffect(() => {
     let editor: Editor | null = null;
 
-    // Adiciona o link para o Font Awesome no head do documento principal
-    // para que os ícones dos botões do editor sejam carregados.
     const fontAwesomeLink = document.createElement('link');
     fontAwesomeLink.rel = 'stylesheet';
     fontAwesomeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css';
@@ -36,15 +34,51 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
         width: 'auto',
         storageManager: false,
         plugins: [grapesjsPresetWebpage, grapesjsTailwind],
-        // Carrega os estilos globais da aplicação e a fonte no canvas do editor
         canvas: {
           styles: [
             'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-            '/src/index.css' // Carrega o CSS principal da sua aplicação
+            '/src/index.css'
           ],
           scripts: ['https://cdn.tailwindcss.com'],
         },
-        // Configuração de internacionalização para traduzir o editor para PT-BR
+        // ✅ CORREÇÃO: Adicionada a configuração de painéis para garantir que a UI do editor seja renderizada.
+        panels: {
+          defaults: [
+            {
+              id: 'options',
+              buttons: [], // Os botões serão adicionados dinamicamente abaixo.
+            },
+            {
+              id: 'views',
+              buttons: [
+                {
+                  id: 'open-style-manager',
+                  className: 'fa fa-paint-brush',
+                  command: 'open-sm',
+                  attributes: { title: 'Estilos' },
+                },
+                {
+                  id: 'open-trait-manager',
+                  className: 'fa fa-cog',
+                  command: 'open-tm',
+                  attributes: { title: 'Configurações' },
+                },
+                {
+                  id: 'open-blocks',
+                  className: 'fa fa-th-large',
+                  command: 'open-blocks',
+                  attributes: { title: 'Blocos' },
+                },
+                 {
+                  id: 'open-layer-manager',
+                  className: 'fa fa-bars',
+                  command: 'open-layers',
+                  attributes: { title: 'Camadas' },
+                },
+              ],
+            },
+          ]
+        },
         i18n: {
           locale: 'pt-BR',
           messages: {
@@ -59,6 +93,13 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
                   'border': 'Borda',
                   'width': 'Largura',
                   'height': 'Altura'
+                },
+                 sectors: {
+                    general: 'Geral',
+                    layout: 'Layout',
+                    typography: 'Tipografia',
+                    decorations: 'Decorações',
+                    extra: 'Extra',
                 }
               },
               assetManager: {
@@ -66,9 +107,6 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
                 upload: 'Enviar Imagem'
               },
               blockManager: {
-                labels: {
-                  // ... outras traduções de blocos
-                },
                 categories: {
                   'Basic': 'Básico',
                   'Typography': 'Tipografia',
@@ -88,13 +126,8 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
 
       editor.on('load', () => {
         const panels = editor!.Panels;
-
-        // Limpa paineis existentes se necessário para evitar duplicatas
-        if (panels.getPanel('options')) {
-            panels.removePanel('options');
-        }
-        panels.addPanel({ id: 'options', buttons: [] });
-
+        const optionsPanel = panels.getPanel('options');
+        optionsPanel?.get('buttons').reset(); // Limpa botões padrão para adicionar os personalizados
 
         // Botão para Voltar
         panels.addButton('options', {
@@ -112,7 +145,6 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
               const html = editorInstance.getHtml();
               const css = editorInstance.getCss();
               onSave({ html, css });
-              // Feedback visual para o usuário
               toast({
                   title: "Salvo com sucesso!",
                   description: "Sua landing page foi salva no banco de dados.",
@@ -127,22 +159,20 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
             className: 'fa fa-download',
             command: (editorInstance) => {
                 const html = `
-                    <!DOCTYPE html>
-                    <html lang="pt-BR">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Sua Landing Page</title>
-                        <script src="https://cdn.tailwindcss.com"></script>
-                        <link rel="stylesheet" href="./style.css">
-                    </head>
-                    <body>
-                        ${editorInstance.getHtml()}
-                    </body>
-                    </html>
-                `;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sua Landing Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    ${editorInstance.getHtml()}
+</body>
+</html>`;
                 const css = editorInstance.getCss();
-
                 const zip = new JSZip();
                 zip.file("index.html", html);
                 zip.file("style.css", css);
@@ -150,7 +180,6 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
                 zip.generateAsync({ type: "blob" }).then(content => {
                     saveAs(content, "landing-page.zip");
                 });
-
                 toast({
                     title: "Download Iniciado",
                     description: "Sua landing page está sendo baixada como um arquivo .zip.",
@@ -162,7 +191,7 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
         // Botão para Alternar Tema
         panels.addButton('options', {
           id: 'toggle-theme',
-          className: 'fa fa-moon-o',
+          className: initialTheme === 'dark' ? 'fa fa-sun-o' : 'fa fa-moon-o',
           command: (editorInstance) => {
             const body = editorInstance.Canvas.getBody();
             const button = panels.getButton('options', 'toggle-theme');
@@ -176,15 +205,12 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
           attributes: { title: 'Alternar Tema' },
         });
 
-        // Aplica o tema inicial e classes ao carregar o editor
         const body = editor!.Canvas.getBody();
         body.classList.add('dashboard-container');
         if (initialTheme === 'dark') {
           body.classList.add('dark');
-          panels.getButton('options', 'toggle-theme')?.set('className', 'fa fa-sun-o');
         }
 
-        // Carrega os dados iniciais
         if (initialData?.html) {
           editor!.setComponents(initialData.html);
           if (initialData.css) {
