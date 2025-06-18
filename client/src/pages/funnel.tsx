@@ -1,327 +1,405 @@
-// client/src/pages/funnel.tsx
-import React, { useState, useMemo, useEffect, ChangeEvent, useCallback, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Users, MousePointer, ShoppingCart, Percent, TrendingUp, Plus, Edit, Trash2, Loader2, AlertTriangle, Link as LinkIcon, Filter as FilterIcon, BarChartHorizontalBig, Settings, ShoppingBag, DollarSign as DollarSignIcon, Workflow, AlertCircle } from 'lucide-react';
-import { ResponsiveContainer, FunnelChart, Funnel as RechartsFunnel, Tooltip as RechartsTooltip, LabelList, Cell } from 'recharts';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/api';
-import { Funnel as FunnelType, FunnelStage, InsertFunnel, insertFunnelSchema, Campaign as CampaignType } from '@shared/schema';
-import { cn } from '@/lib/utils';
+// client/src/pages/LaunchSimulator.tsx
+import React, { useState, useMemo } from 'react';
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    DollarSign,
+    Target,
+    Users,
+    ShoppingCart,
+    TrendingUp,
+    BarChart,
+    Sparkles,
+    HelpCircle,
+    FileDown,
+    Save,
+    Loader2
+} from 'lucide-react';
 
-interface FunnelWithStages extends FunnelType {
-  stages: FunnelStage[];
+// --- Tipos e Interfaces ---
+interface LaunchInputs {
+    investimentoTráfego: number;
+    cplEstimado: number;
+    listaEmailsExistente: number;
+    taxaParticipacaoCPL: number;
+    taxaCliquesPaginaVendas: number;
+    precoProdutoPrincipal: number;
+    taxaConversaoPaginaVendas: number;
+    habilitarOrderBump: boolean;
+    precoOrderBump: number;
+    taxaAdesaoOrderBump: number;
+    habilitarUpsell: boolean;
+    precoUpsell: number;
+    taxaAdesaoUpsell: number;
+    taxaPlataforma: number;
+    taxaAprovacaoPagamentos: number;
+    taxaReembolso: number;
 }
 
-interface FunnelMetrics {
-  totalVisitors: number;
-  totalConversions: number;
-  overallConversionRate: number;
-  stagesMetrics: Array<{ name: string; value: number; conversionFromPrevious: number | null; }>;
+interface FunnelStageData {
+    label: string;
+    value: number;
+    conversionRate: number; // Taxa de conversão da etapa ANTERIOR para esta
+    faturamento?: number; 
 }
 
-type FunnelFormData = Pick<InsertFunnel, "name" | "description" | "campaignId">;
-
-interface SimulatorData {
-  investimentoDiario: number;
-  cpc: number;
-  precoProduto: number;
-  alcanceOrganico: number;
-  conversaoAlcanceParaCliques: number;
-  taxaConversaoSite: number;
-}
-
-const initialSimulatorData: SimulatorData = {
-  investimentoDiario: 279.70,
-  cpc: 1.95,
-  precoProduto: 97.00,
-  alcanceOrganico: 12000,
-  conversaoAlcanceParaCliques: 2.00,
-  taxaConversaoSite: 2.50,
+// --- Estado Inicial ---
+const initialState: LaunchInputs = {
+    investimentoTráfego: 20000,
+    cplEstimado: 2.00,
+    listaEmailsExistente: 0,
+    taxaParticipacaoCPL: 35,
+    taxaCliquesPaginaVendas: 80,
+    precoProdutoPrincipal: 990,
+    taxaConversaoPaginaVendas: 5,
+    habilitarOrderBump: true,
+    precoOrderBump: 97,
+    taxaAdesaoOrderBump: 35,
+    habilitarUpsell: true,
+    precoUpsell: 197,
+    taxaAdesaoUpsell: 15,
+    taxaPlataforma: 7.99,
+    taxaAprovacaoPagamentos: 88,
+    taxaReembolso: 3,
 };
 
-const FUNNEL_COLORS = ['#8884d8', '#83a6ed', '#8dd1e1', '#82ca9d', '#a4de6c', '#d0ed57', '#ffc658'];
-const SIMULATOR_FUNNEL_COLORS = ['#00C49F', '#FFBB28', '#FF8042'];
-
-const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-const formatNumber = (value: number) => new Intl.NumberFormat('pt-BR').format(Math.round(value));
-
-export default function FunnelPage() {
-  const [selectedFunnelId, setSelectedFunnelId] = useState<number | null>(null);
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [editingFunnel, setEditingFunnel] = useState<FunnelType | null>(null);
-  const [campaignFilter, setCampaignFilter] = useState<string>('all');
-  const [simulatorData, setSimulatorData] = useState<SimulatorData>(initialSimulatorData);
-
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: allFunnels = [], isLoading: isLoadingFunnels, error: funnelsError, refetch: refetchFunnelsList } = useQuery<FunnelType[]>({
-    queryKey: ['funnels'],
-    queryFn: async () => apiRequest('GET', '/api/funnels').then(res => res.json()),
-  });
-
-  const { data: selectedFunnelData, isLoading: isLoadingSelectedFunnel, error: selectedFunnelError } = useQuery<FunnelWithStages>({
-    queryKey: ['funnelDetails', selectedFunnelId],
-    queryFn: async () => apiRequest('GET', `/api/funnels/${selectedFunnelId}`).then(res => res.json()),
-    enabled: !!selectedFunnelId,
-  });
-
-  const { data: campaignsList = [] } = useQuery<CampaignType[]>({
-    queryKey: ['campaignsForFunnelForm'],
-    queryFn: () => apiRequest('GET', '/api/campaigns').then(res => res.json()),
-  });
-
-  const form = useForm<FunnelFormData>({
-    resolver: zodResolver(insertFunnelSchema.pick({ name: true, description: true, campaignId: true })),
-    defaultValues: { name: '', description: '', campaignId: null },
-  });
-
-  useEffect(() => {
-    if (editingFunnel) {
-      form.reset({ name: editingFunnel.name, description: editingFunnel.description || '', campaignId: editingFunnel.campaignId ?? null });
-    } else {
-      form.reset({ name: '', description: '', campaignId: null });
-    }
-  }, [editingFunnel, form]);
-
-  const funnelMutation = useMutation<FunnelType, Error, FunnelFormData & { id?: number }>({
-    mutationFn: async (data) => {
-      const method = data.id ? 'PUT' : 'POST';
-      const endpoint = data.id ? `/api/funnels/${data.id}` : '/api/funnels';
-      const response = await apiRequest(method, endpoint, data);
-      if (!response.ok) {
-        const errorResult = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-        throw new Error(errorResult.message || `Falha ao ${data.id ? 'atualizar' : 'criar'} funil.`);
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({ title: `Funil ${editingFunnel ? 'atualizado' : 'criado'}!`, description: `"${data.name}" foi salvo.` });
-      queryClient.invalidateQueries({ queryKey: ['funnels'] });
-      setIsFormModalOpen(false);
-      setEditingFunnel(null);
-      setSelectedFunnelId(data.id);
-    },
-    onError: (error) => toast({ title: 'Erro ao salvar funil', description: error.message, variant: 'destructive' })
-  });
-
-  const deleteFunnelMutation = useMutation<void, Error, number>({
-    mutationFn: (id) => apiRequest('DELETE', `/api/funnels/${id}`),
-    onSuccess: (_, deletedId) => {
-      toast({ title: 'Funil excluído!' });
-      queryClient.invalidateQueries({ queryKey: ['funnels'] });
-      if (selectedFunnelId === deletedId) setSelectedFunnelId(null);
-    },
-    onError: (error) => toast({ title: 'Erro ao excluir funil', description: error.message, variant: 'destructive' })
-  });
-
-  const handleOpenFormModal = (funnel?: FunnelType) => {
-    setEditingFunnel(funnel || null);
-    setIsFormModalOpen(true);
-  };
-
-  const onSubmitFunnelForm = (data: FunnelFormData) => funnelMutation.mutate({ ...data, id: editingFunnel?.id });
-  const handleDeleteFunnel = (id: number) => { if (window.confirm('Excluir este funil e suas etapas?')) deleteFunnelMutation.mutate(id); };
-
-  const filteredFunnelsList = useMemo(() => {
-    if (campaignFilter === 'all') return allFunnels;
-    return allFunnels.filter(f => String(f.campaignId) === campaignFilter);
-  }, [allFunnels, campaignFilter]);
-
-  useEffect(() => {
-    if (!selectedFunnelId && filteredFunnelsList.length > 0) {
-      setSelectedFunnelId(filteredFunnelsList[0].id);
-    } else if (filteredFunnelsList.length === 0) {
-        setSelectedFunnelId(null);
-    }
-  }, [filteredFunnelsList, selectedFunnelId]);
-
-  const funnelMetrics = useMemo((): FunnelMetrics | null => {
-    if (!selectedFunnelData || !selectedFunnelData.stages || selectedFunnelData.stages.length === 0) return null;
-    const stages = [...selectedFunnelData.stages].sort((a, b) => a.order - b.order);
-    const totalVisitors = 10000; // Mock: In a real scenario, this would come from an API or campaign metrics.
-    let currentVisitors = totalVisitors;
-    const stagesMetrics = stages.map((stage, index) => {
-      const conversionRate = 0.4 + (Math.random() * 0.3); // Mock conversion rate (40-70%)
-      const previousValue = index === 0 ? totalVisitors : stagesMetrics[index - 1].value;
-      currentVisitors = index === 0 ? totalVisitors : Math.round(previousValue * conversionRate);
-      return {
-        name: `${stage.order}. ${stage.name}`,
-        value: currentVisitors,
-        conversionFromPrevious: index > 0 ? (currentVisitors / previousValue) * 100 : null
-      };
-    });
-    const totalConversions = stagesMetrics[stagesMetrics.length - 1]?.value || 0;
-    const overallConversionRate = totalVisitors > 0 ? (totalConversions / totalVisitors) * 100 : 0;
-    return { totalVisitors, totalConversions, overallConversionRate, stagesMetrics };
-  }, [selectedFunnelData]);
-
-  const savedFunnelChartData = useMemo(() => funnelMetrics?.stagesMetrics.map((stage, index) => ({
-    name: stage.name,
-    value: stage.value,
-    fill: FUNNEL_COLORS[index % FUNNEL_COLORS.length]
-  })) || [], [funnelMetrics]);
-
-  const handleSimulatorInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSimulatorData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
-  };
-
-  const handleSimulatorSliderChange = (name: keyof SimulatorData, value: number[]) => {
-    setSimulatorData(prev => ({ ...prev, [name]: value[0] || 0 }));
-  };
-
-  const simulatorCalculations = useMemo(() => {
-    const d = simulatorData;
-    const visitantesPagos = d.cpc > 0 ? d.investimentoDiario / d.cpc : 0;
-    const visitantesOrganicos = d.alcanceOrganico * (d.conversaoAlcanceParaCliques / 100);
-    const totalVisitantes = visitantesPagos + visitantesOrganicos;
-    const vendas = totalVisitantes * (d.taxaConversaoSite / 100);
-    const faturamentoDiario = vendas * d.precoProduto;
-    const lucroDiario = faturamentoDiario - d.investimentoDiario;
-    return { totalVisitantes, vendas, faturamentoDiario, lucroDiario };
-  }, [simulatorData]);
-
-  const simulatorFunnelChartData = [
-    { name: 'Total Visitantes', value: Math.round(simulatorCalculations.totalVisitantes), fill: SIMULATOR_FUNNEL_COLORS[0] },
-    { name: 'Vendas Estimadas', value: Math.round(simulatorCalculations.vendas), fill: SIMULATOR_FUNNEL_COLORS[1] },
-  ].filter(item => item.value > 0);
-
-  if (isLoadingFunnels) return <div className="p-8 text-center"><Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" /> Carregando funis...</div>;
-  if (funnelsError) return <div className="p-8 text-center text-destructive"><AlertTriangle className="h-12 w-12 mx-auto mb-2" />Erro: {funnelsError.message}<Button onClick={() => refetchFunnelsList()} className="mt-4">Tentar Novamente</Button></div>;
-
-  return (
-    <div className="space-y-6 p-4 md:p-8">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-3xl font-bold tracking-tight">Análise e Simulação de Funis</h1><p className="text-muted-foreground">Gerencie funis existentes e simule novas previsões.</p></div>
-        <Button onClick={() => handleOpenFormModal()} className="neu-button-primary"><Plus className="w-4 h-4 mr-2" /> Novo Funil Salvo</Button>
-      </div>
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4">
-          <TabsTrigger value="overview">Funis Salvos</TabsTrigger>
-          <TabsTrigger value="simulator">Simulador</TabsTrigger>
-          <TabsTrigger value="detailed" disabled={!selectedFunnelId}>Análise Detalhada (Em breve)</TabsTrigger>
-          <TabsTrigger value="optimization" disabled={!selectedFunnelId}>Otimização (Em breve)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <Card className="neu-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Meus Funis</CardTitle>
-              <div className="w-full md:w-64">
-                <Select value={campaignFilter} onValueChange={setCampaignFilter}>
-                  <SelectTrigger className="neu-input"><FilterIcon className="w-4 h-4 mr-2" /><SelectValue placeholder="Filtrar por Campanha" /></SelectTrigger>
-                  <SelectContent className="neu-card">
-                    <SelectItem value="all">Todas as Campanhas</SelectItem>
-                    {campaignsList.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredFunnelsList.length === 0 ? <p className="text-muted-foreground text-center py-4">Nenhum funil salvo encontrado.</p> : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredFunnelsList.map((f) => (
-                     <Card key={f.id} className={cn('p-4 border-2 rounded-lg cursor-pointer transition-colors', selectedFunnelId === f.id ? 'border-primary bg-primary/5 shadow-md' : 'border-transparent bg-muted/50 hover:border-primary/50')} onClick={() => setSelectedFunnelId(f.id)}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h3 className="font-semibold">{f.name}</h3>
-                                <p className="text-xs text-muted-foreground line-clamp-1">{f.description || "Sem descrição"}</p>
-                            </div>
-                            <div className="flex space-x-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleOpenFormModal(f);}}><Edit className="w-4 h-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteFunnel(f.id);}}><Trash2 className="w-4 h-4" /></Button>
-                            </div>
-                        </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {isLoadingSelectedFunnel && selectedFunnelId ? (<div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /> Carregando detalhes...</div>
-          ) : selectedFunnelError ? (<Card className="border-destructive bg-destructive/10"><CardContent className="p-4 text-destructive flex items-center"><AlertCircle className="h-5 w-5 mr-2" />Erro: {selectedFunnelError.message}</CardContent></Card>
-          ) : selectedFunnelData && funnelMetrics ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="neu-card"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Visitantes</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(funnelMetrics.totalVisitors)}</div></CardContent></Card>
-                <Card className="neu-card"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Conversões</CardTitle><ShoppingCart className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(funnelMetrics.totalConversions)}</div></CardContent></Card>
-                <Card className="neu-card"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle><Percent className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{funnelMetrics.overallConversionRate.toFixed(2)}%</div></CardContent></Card>
-              </div>
-              <Card className="neu-card">
-                <CardHeader><CardTitle>Visualização do Funil</CardTitle><CardDescription>Fluxo de usuários por etapa (valores simulados baseados em taxas aleatórias).</CardDescription></CardHeader>
-                <CardContent className="h-[450px] p-2">
-                  {savedFunnelChartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <FunnelChart><RechartsTooltip formatter={(value: number, name: string) => [formatNumber(value), name.substring(name.indexOf('.') + 2)]} /><RechartsFunnel dataKey="value" data={savedFunnelChartData} isAnimationActive>{savedFunnelChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} />))}<LabelList position="center" fill="#fff" dataKey="name" formatter={(value: string) => value.substring(value.indexOf('.') + 2)} className="text-sm font-semibold" /></RechartsFunnel></FunnelChart>
-                    </ResponsiveContainer>
-                  ) : <div className="flex items-center justify-center h-full text-muted-foreground">Este funil não possui etapas.</div>}
-                </CardContent>
-              </Card>
-            </>
-          ) : !selectedFunnelId && !isLoadingFunnels && (<Card className="neu-card"><CardContent className="p-8 text-muted-foreground text-center"><Workflow className="h-10 w-10 mx-auto mb-2 opacity-50"/>Selecione um funil salvo para ver os detalhes.</CardContent></Card>)}
-        </TabsContent>
-        
-        <TabsContent value="simulator" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-1 neu-card">
-                <CardHeader><CardTitle>Configurar Simulação</CardTitle><CardDescription>Ajuste os valores para prever resultados.</CardDescription></CardHeader>
-                <CardContent className="space-y-5">
-                   <div className="space-y-2"><Label htmlFor="sim-inv" className="flex items-center text-sm font-medium"><DollarSignIcon className="w-4 h-4 mr-2"/>Investimento Diário (R$)</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-inv" name="investimentoDiario" value={simulatorData.investimentoDiario} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.investimentoDiario]} onValueChange={(v) => handleSimulatorSliderChange('investimentoDiario', v)} min={0} max={5000} step={10}/></div></div>
-                   <div className="space-y-2"><Label htmlFor="sim-cpc" className="flex items-center text-sm font-medium"><MousePointer className="w-4 h-4 mr-2"/>CPC (R$)</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-cpc" name="cpc" value={simulatorData.cpc} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.cpc]} onValueChange={(v) => handleSimulatorSliderChange('cpc', v)} min={0.01} max={20} step={0.01}/></div></div>
-                   <div className="space-y-2"><Label htmlFor="sim-preco" className="flex items-center text-sm font-medium"><ShoppingBag className="w-4 h-4 mr-2"/>Preço do Produto (R$)</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-preco" name="precoProduto" value={simulatorData.precoProduto} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.precoProduto]} onValueChange={(v) => handleSimulatorSliderChange('precoProduto', v)} min={1} max={2000} step={1}/></div></div>
-                   <div className="space-y-2"><Label htmlFor="sim-alc" className="flex items-center text-sm font-medium"><Users className="w-4 h-4 mr-2"/>Alcance Orgânico Diário</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-alc" name="alcanceOrganico" value={simulatorData.alcanceOrganico} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.alcanceOrganico]} onValueChange={(v) => handleSimulatorSliderChange('alcanceOrganico', v)} min={0} max={100000} step={500}/></div></div>
-                   <div className="space-y-2"><Label htmlFor="sim-convAlc" className="flex items-center text-sm font-medium"><Percent className="w-4 h-4 mr-2"/>Conversão Alcance p/ Cliques (%)</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-convAlc" name="conversaoAlcanceParaCliques" value={simulatorData.conversaoAlcanceParaCliques} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.conversaoAlcanceParaCliques]} onValueChange={(v) => handleSimulatorSliderChange('conversaoAlcanceParaCliques', v)} min={0.1} max={20} step={0.1}/></div></div>
-                   <div className="space-y-2"><Label htmlFor="sim-txSite" className="flex items-center text-sm font-medium"><TrendingUp className="w-4 h-4 mr-2"/>Taxa de Conversão do Site (%)</Label><div className="flex items-center space-x-2"><Input type="number" id="sim-txSite" name="taxaConversaoSite" value={simulatorData.taxaConversaoSite} onChange={handleSimulatorInputChange} className="neu-input w-28"/> <Slider value={[simulatorData.taxaConversaoSite]} onValueChange={(v) => handleSimulatorSliderChange('taxaConversaoSite', v)} min={0.1} max={20} step={0.1}/></div></div>
-                </CardContent>
-              </Card>
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="neu-card">
-                  <CardHeader><CardTitle className="flex items-center"><BarChartHorizontalBig className="w-5 h-5 mr-2"/>Previsão do Funil</CardTitle><CardDescription>Resultados com base nas métricas simuladas.</CardDescription></CardHeader>
-                  <CardContent>
-                    <div className="h-[350px]"><ResponsiveContainer width="100%" height="100%"><FunnelChart><RechartsTooltip formatter={(value, name) => [formatNumber(value as number), name]} /><RechartsFunnel dataKey="value" data={simulatorFunnelChartData} isAnimationActive>{simulatorFunnelChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} />))}<LabelList position="center" fill="#fff" dataKey="name" className="text-sm font-semibold"/></RechartsFunnel></FunnelChart></ResponsiveContainer></div>
-                  </CardContent>
-                </Card>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="neu-card"><CardHeader><CardTitle className="text-base">Vendas</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p>Diário: <span className="font-semibold">{formatNumber(simulatorCalculations.vendas)}</span></p><p>Semanal: <span className="font-semibold">{formatNumber(simulatorCalculations.vendas*7)}</span></p><p>Mensal: <span className="font-semibold">{formatNumber(simulatorCalculations.vendas*30)}</span></p></CardContent></Card>
-                  <Card className="neu-card"><CardHeader><CardTitle className="text-base">Faturamento (R$)</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p>Diário: <span className="font-semibold">{formatCurrency(simulatorCalculations.faturamentoDiario)}</span></p><p>Semanal: <span className="font-semibold">{formatCurrency(simulatorCalculations.faturamentoDiario * 7)}</span></p><p>Mensal: <span className="font-semibold">{formatCurrency(simulatorCalculations.faturamentoDiario * 30)}</span></p></CardContent></Card>
-                  <Card className="neu-card"><CardHeader><CardTitle className="text-base">Lucro (R$)</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p>Diário: <span className="font-semibold">{formatCurrency(simulatorCalculations.lucroDiario)}</span></p><p>Semanal: <span className="font-semibold">{formatCurrency(simulatorCalculations.lucroDiario * 7)}</span></p><p>Mensal: <span className="font-semibold">{formatCurrency(simulatorCalculations.lucroDiario * 30)}</span></p></CardContent></Card>
-                </div>
-              </div>
-            </div>
-        </TabsContent>
-        <TabsContent value="detailed"><Card className="neu-card"><CardContent className="p-12 text-center text-muted-foreground"><Settings className="mx-auto h-12 w-12 mb-4 opacity-50"/> <h3 className="text-xl font-semibold">Em breve</h3><p>Análises detalhadas de cada etapa do funil estarão disponíveis aqui.</p></CardContent></Card></TabsContent>
-        <TabsContent value="optimization"><Card className="neu-card"><CardContent className="p-12 text-center text-muted-foreground"><TrendingUp className="mx-auto h-12 w-12 mb-4 opacity-50"/> <h3 className="text-xl font-semibold">Em breve</h3><p>Sugestões de otimização baseadas em IA para melhorar a performance do seu funil.</p></CardContent></Card></TabsContent>
-      </Tabs>
-      
-      <Dialog open={isFormModalOpen} onOpenChange={setIsFormModalOpen}>
-        <DialogContent className="sm:max-w-[500px] neu-card p-0">
-            <DialogHeader className="p-6 pb-4 border-b border-border"><DialogTitle className="text-xl">{editingFunnel ? 'Editar Funil' : 'Novo Funil'}</DialogTitle><DialogDescription>{editingFunnel ? `Modificando "${editingFunnel.name}"` : 'Crie um funil para acompanhar suas métricas.'}</DialogDescription></DialogHeader>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitFunnelForm)} className="space-y-5 p-6">
-                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome *</FormLabel><FormControl><Input placeholder="Ex: Funil de Vendas Principal" {...field} className="neu-input" /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrição</FormLabel><FormControl><Textarea placeholder="Descreva o objetivo e as etapas deste funil..." {...field} className="neu-input" rows={3} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="campaignId" render={({ field }) => (<FormItem><FormLabel>Campanha (Opcional)</FormLabel><Select value={field.value === null ? "NONE" : String(field.value)} onValueChange={(value) => field.onChange(value === "NONE" ? null : parseInt(value))}><FormControl><SelectTrigger className="neu-input"><SelectValue placeholder="Nenhuma" /></SelectTrigger></FormControl><SelectContent className="neu-card"><SelectItem value="NONE">Nenhuma campanha</SelectItem>{campaignsList.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                    <DialogFooter className="pt-4"><Button type="button" variant="outline" onClick={() => setIsFormModalOpen(false)} disabled={funnelMutation.isPending} className="neu-button">Cancelar</Button><Button type="submit" disabled={funnelMutation.isPending} className="neu-button-primary">{funnelMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingFunnel ? 'Salvar' : 'Criar'}</Button></DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
+// --- Componentes Auxiliares ---
+const InputField = ({ label, id, value, onChange, unit = "R$", type = "number", helpText }: { label: string, id: keyof LaunchInputs, value: number, onChange: (id: keyof LaunchInputs, value: number) => void, unit?: string, type?: string, helpText?: string }) => (
+    <div className="space-y-2">
+        <div className="flex items-center justify-between">
+            <Label htmlFor={id} className="text-sm font-medium text-gray-300">{label}</Label>
+            {helpText && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-gray-500" /></TooltipTrigger>
+                        <TooltipContent><p>{helpText}</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
+        </div>
+        <div className="flex items-center">
+            <span className="text-sm bg-gray-700 text-gray-300 px-3 py-2 rounded-l-md border border-r-0 border-gray-600">{unit}</span>
+            <Input
+                id={id}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(id, parseFloat(e.target.value) || 0)}
+                className="bg-gray-800 border-gray-600 text-white rounded-l-none focus:ring-blue-500 focus:border-blue-500"
+            />
+        </div>
     </div>
-  );
+);
+
+const SliderField = ({ label, id, value, onChange, helpText }: { label: string, id: keyof LaunchInputs, value: number, onChange: (id: keyof LaunchInputs, value: number) => void, helpText?: string }) => (
+    <div className="space-y-2">
+        <div className="flex items-center justify-between">
+            <Label htmlFor={id} className="text-sm font-medium text-gray-300">{label}</Label>
+            {helpText && (
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-gray-500" /></TooltipTrigger>
+                        <TooltipContent><p>{helpText}</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
+        </div>
+        <div className="flex items-center gap-4">
+            <Slider
+                id={id}
+                min={0}
+                max={100}
+                step={1}
+                value={[value]}
+                onValueChange={(values) => onChange(id, values[0])}
+            />
+            <span className="text-sm font-semibold text-blue-300 w-12 text-right">{value}%</span>
+        </div>
+    </div>
+);
+
+const FinancialCard = ({ title, value, icon: Icon }: { title: string, value: string, icon: React.ElementType }) => (
+    <Card className="bg-gray-800/50 border-gray-700 text-center">
+        <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center justify-center gap-2"><Icon className="h-4 w-4" />{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <p className="text-2xl font-bold text-blue-300">{value}</p>
+        </CardContent>
+    </Card>
+);
+
+// --- Componente do Funil 3D ---
+const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], formatCurrency: (value: number) => string, roas: number }) => {
+    const VIEWBOX_WIDTH = 400;
+    const VIEWBOX_HEIGHT = 550;
+    const MAX_WIDTH = 300;
+    const SEGMENT_HEIGHT = 80;
+    const ELLIPSE_RY = 20;
+    const BASE_HEIGHT = 60;
+    
+    const maxVal = data.length > 0 ? data[0].value : 1;
+    
+    const getWidth = (value: number) => {
+        if (maxVal === 0) return 0;
+        return (value / maxVal) * MAX_WIDTH;
+    };
+
+    const segments = data.map((stage, index) => {
+        const topY = index * SEGMENT_HEIGHT + 50;
+        const topWidth = getWidth(stage.value);
+        const bottomWidth = (index < data.length - 1) ? getWidth(data[index+1].value) : getWidth(stage.value) * 0.8;
+        
+        const x1 = (VIEWBOX_WIDTH - topWidth) / 2;
+        const x2 = (VIEWBOX_WIDTH + topWidth) / 2;
+        const x3 = (VIEWBOX_WIDTH - bottomWidth) / 2;
+        const x4 = (VIEWBOX_WIDTH + bottomWidth) / 2;
+        
+        const y1 = topY + ELLIPSE_RY;
+        const y2 = topY + SEGMENT_HEIGHT;
+        
+        return {
+            ...stage,
+            topY,
+            topWidth,
+            bottomWidth,
+            path: `M ${x1} ${y1} L ${x3} ${y2} Q ${VIEWBOX_WIDTH/2} ${y2 + ELLIPSE_RY}, ${x4} ${y2} L ${x2} ${y1} Q ${VIEWBOX_WIDTH/2} ${y1 - ELLIPSE_RY}, ${x1} ${y1} Z`,
+            ellipseTopCx: VIEWBOX_WIDTH / 2,
+            ellipseTopCy: y1,
+            ellipseTopRx: topWidth / 2,
+            ellipseTopRy: ELLIPSE_RY,
+        };
+    });
+    
+    const lastSegment = segments[segments.length - 1];
+    const financialBaseY = lastSegment ? lastSegment.topY + SEGMENT_HEIGHT + ELLIPSE_RY : VIEWBOX_HEIGHT - BASE_HEIGHT;
+
+    return (
+        <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} width="100%" height="100%" className="drop-shadow-2xl">
+            <defs>
+                 <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#4A90E2" /><stop offset="100%" stopColor="#3A7BC8" /></linearGradient>
+                <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#50E3C2" /><stop offset="100%" stopColor="#42CBAA" /></linearGradient>
+                <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#F5A623" /><stop offset="100%" stopColor="#D38E1B" /></linearGradient>
+                <linearGradient id="grad4" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#7ED321" /><stop offset="100%" stopColor="#68B61A" /></linearGradient>
+                <linearGradient id="gradBase" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#BD10E0" /><stop offset="100%" stopColor="#9E0BC0" /></linearGradient>
+            </defs>
+            <g>
+                {segments.map((s, i) => (
+                    <g key={i}>
+                        <path d={s.path} fill={`url(#grad${i + 1})`} stroke="#111827" strokeWidth="0.5" />
+                        <ellipse cx={s.ellipseTopCx} cy={s.ellipseTopCy} rx={s.ellipseTopRx} ry={s.ellipseTopRy} fill={`url(#grad${i + 1})`} className="brightness-125" />
+                        <text x={VIEWBOX_WIDTH / 2} y={s.topY + SEGMENT_HEIGHT / 2 + 5} textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{s.value.toLocaleString('pt-BR')}</text>
+                        <text x={20} y={s.topY + SEGMENT_HEIGHT / 2 - 5} textAnchor="start" fill="#E5E7EB" fontSize="12" fontWeight="bold">{s.label}</text>
+                        {i > 0 && (<text x={VIEWBOX_WIDTH - 20} y={s.topY + SEGMENT_HEIGHT / 2 + 5} textAnchor="end" fill="#E5E7EB" fontSize="12" fontWeight="bold">{s.conversionRate.toFixed(1)}%</text>)}
+                    </g>
+                ))}
+                {lastSegment && data.length > 0 && data[data.length -1].faturamento !== undefined && (
+                    <g>
+                        <path d={`M ${(VIEWBOX_WIDTH - lastSegment.bottomWidth) / 2} ${financialBaseY} L ${(VIEWBOX_WIDTH - lastSegment.bottomWidth * 0.9) / 2} ${financialBaseY + BASE_HEIGHT} Q ${VIEWBOX_WIDTH/2} ${financialBaseY + BASE_HEIGHT + ELLIPSE_RY}, ${(VIEWBOX_WIDTH + lastSegment.bottomWidth*0.9) / 2} ${financialBaseY + BASE_HEIGHT} L ${(VIEWBOX_WIDTH + lastSegment.bottomWidth) / 2} ${financialBaseY} Q ${VIEWBOX_WIDTH/2} ${financialBaseY - ELLIPSE_RY}, ${(VIEWBOX_WIDTH - lastSegment.bottomWidth) / 2} ${financialBaseY} Z`} fill="url(#gradBase)" stroke="#111827" strokeWidth="0.5" />
+                        <ellipse cx={VIEWBOX_WIDTH / 2} cy={financialBaseY} rx={lastSegment.bottomWidth/2} ry={ELLIPSE_RY} fill="url(#gradBase)" className="brightness-125" />
+                        <text x={VIEWBOX_WIDTH / 2} y={financialBaseY + 25} textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{formatCurrency(data[data.length - 1].faturamento!)}</text>
+                        <text x={VIEWBOX_WIDTH / 2} y={financialBaseY + 45} textAnchor="middle" fill="#E5E7EB" fontSize="12">ROAS: {roas.toFixed(2)}x</text>
+                        <text x={20} y={financialBaseY + BASE_HEIGHT / 2} textAnchor="start" fill="#E5E7EB" fontSize="12" fontWeight="bold">Faturação</text>
+                    </g>
+                )}
+            </g>
+        </svg>
+    );
+};
+
+
+// --- Componente Principal ---
+export default function LaunchSimulatorPage() {
+    const [inputs, setInputs] = useState<LaunchInputs>(initialState);
+    const [insight, setInsight] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    const handleInputChange = (id: keyof LaunchInputs, value: number) => {
+        setInputs(prev => ({ ...prev, [id]: value }));
+        setInsight(null);
+    };
+
+    const handleCheckboxChange = (id: keyof LaunchInputs, checked: boolean) => {
+        setInputs(prev => ({ ...prev, [id]: checked }));
+        setInsight(null);
+    };
+
+    const calculations = useMemo(() => {
+        const leadsGerados = inputs.cplEstimado > 0 ? (inputs.investimentoTráfego / inputs.cplEstimado) + inputs.listaEmailsExistente : inputs.listaEmailsExistente;
+        const leadsAquecidos = leadsGerados * (inputs.taxaParticipacaoCPL / 100);
+        const visitantesPaginaVendas = leadsAquecidos * (inputs.taxaCliquesPaginaVendas / 100);
+        const vendasRealizadasBrutas = visitantesPaginaVendas * (inputs.taxaConversaoPaginaVendas / 100);
+        const vendasAprovadas = vendasRealizadasBrutas * (inputs.taxaAprovacaoPagamentos / 100);
+        const receitaProdutoPrincipal = vendasAprovadas * inputs.precoProdutoPrincipal;
+        const vendasOrderBump = inputs.habilitarOrderBump ? vendasAprovadas * (inputs.taxaAdesaoOrderBump / 100) : 0;
+        const receitaOrderBump = vendasOrderBump * inputs.precoOrderBump;
+        const vendasUpsell = inputs.habilitarUpsell ? vendasAprovadas * (inputs.taxaAdesaoUpsell / 100) : 0;
+        const receitaUpsell = vendasUpsell * inputs.precoUpsell;
+        const faturamentoBruto = receitaProdutoPrincipal + receitaOrderBump + receitaUpsell;
+        const custoTaxas = faturamentoBruto * (inputs.taxaPlataforma / 100);
+        const custoReembolso = faturamentoBruto * (inputs.taxaReembolso / 100);
+        const lucroLiquido = faturamentoBruto - (inputs.investimentoTráfego + custoTaxas + custoReembolso);
+        const roas = inputs.investimentoTráfego > 0 ? faturamentoBruto / inputs.investimentoTráfego : 0;
+        const cac = vendasAprovadas > 0 ? inputs.investimentoTráfego / vendasAprovadas : 0;
+        const ticketMedio = vendasAprovadas > 0 ? faturamentoBruto / vendasAprovadas : 0;
+        return {
+            leadsGerados: Math.round(leadsGerados),
+            leadsAquecidos: Math.round(leadsAquecidos),
+            visitantesPaginaVendas: Math.round(visitantesPaginaVendas),
+            vendasRealizadas: Math.round(vendasAprovadas),
+            faturamentoBruto, lucroLiquido, roas, cac, ticketMedio, receitaProdutoPrincipal, receitaOrderBump, receitaUpsell, custoTaxas, custoReembolso,
+        };
+    }, [inputs]);
+
+    const funnelForChart: FunnelStageData[] = [
+        { label: 'Leads Gerados', value: calculations.leadsGerados, conversionRate: 100 },
+        { label: 'Leads Aquecidos', value: calculations.leadsAquecidos, conversionRate: inputs.taxaParticipacaoCPL },
+        { label: 'Visitantes PV', value: calculations.visitantesPaginaVendas, conversionRate: inputs.taxaCliquesPaginaVendas },
+        { label: 'Vendas', value: calculations.vendasRealizadas, conversionRate: inputs.taxaConversaoPaginaVendas, faturamento: calculations.faturamentoBruto },
+    ];
+    
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    
+    const handleGeminiAnalysis = async () => {
+        setIsAnalyzing(true);
+        setInsight("A analisar o seu cenário... Isto pode demorar alguns segundos.");
+
+        const prompt = `
+            Aja como um especialista em marketing digital e lançamentos de infoprodutos. Analise o seguinte cenário de lançamento e forneça um insight estratégico em português (Portugal).
+
+            **Dados do Cenário:**
+            - Investimento em Tráfego: ${formatCurrency(inputs.investimentoTráfego)}
+            - Custo por Lead (CPL) Estimado: ${formatCurrency(inputs.cplEstimado)}
+            - Lista de E-mails Existente: ${inputs.listaEmailsExistente.toLocaleString('pt-BR')} leads
+            - Taxa de Participação nos CPLs: ${inputs.taxaParticipacaoCPL}%
+            - Taxa de Cliques para a Página de Vendas: ${inputs.taxaCliquesPaginaVendas}%
+            - Preço do Produto Principal: ${formatCurrency(inputs.precoProdutoPrincipal)}
+            - Taxa de Conversão da Página de Vendas: ${inputs.taxaConversaoPaginaVendas}%
+            - Order Bump: ${inputs.habilitarOrderBump ? `Sim (${formatCurrency(inputs.precoOrderBump)} com ${inputs.taxaAdesaoOrderBump}% de adesão)` : 'Não'}
+            - Upsell: ${inputs.habilitarUpsell ? `Sim (${formatCurrency(inputs.precoUpsell)} com ${inputs.taxaAdesaoUpsell}% de adesão)` : 'Não'}
+
+            **Resultados Calculados:**
+            - Faturação Bruta: ${formatCurrency(calculations.faturamentoBruto)}
+            - Lucro Líquido: ${formatCurrency(calculations.lucroLiquido)}
+            - ROAS: ${calculations.roas.toFixed(2)}x
+            - Custo por Aquisição (CAC): ${formatCurrency(calculations.cac)}
+            - Ticket Médio: ${formatCurrency(calculations.ticketMedio)}
+
+            **Sua Tarefa:**
+            1.  **Diagnóstico Rápido:** Identifique o principal ponto de estrangulamento ou a maior alavanca de crescimento neste funil.
+            2.  **Recomendações Acionáveis:** Forneça 2 a 3 sugestões claras, específicas e práticas para melhorar os resultados. Explique o "porquê" de cada sugestão.
+            3.  **Impacto Potencial:** Descreva brevemente o impacto esperado se as suas sugestões forem implementadas.
+
+            Seja direto, estratégico e use uma linguagem que um gestor de marketing entenderia facilmente. Formate a resposta de forma clara, usando listas ou parágrafos curtos.
+        `;
+
+        try {
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+            
+            const result = await response.json();
+
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                setInsight(result.candidates[0].content.parts[0].text);
+            } else {
+                throw new Error("Resposta da IA inválida ou vazia.");
+            }
+        } catch (error) {
+            console.error("Erro ao chamar a Gemini API:", error);
+            setInsight("Ocorreu um erro ao tentar analisar o cenário. Por favor, tente novamente.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-900 text-gray-200 p-4 sm:p-6 lg:p-8 font-sans">
+            <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Simulador de Lançamento Digital</h1>
+                <p className="text-lg text-gray-400 mt-2">Planeje, simule e otimize os seus resultados antes de investir.</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Coluna 1: Entradas */}
+                <div className="lg:col-span-3">
+                    <Card className="bg-gray-800/50 border border-gray-700 backdrop-blur-sm">
+                        <CardHeader>
+                            <CardTitle className="text-xl text-white">Painel de Controlo</CardTitle>
+                            <CardDescription>Insira as variáveis do seu lançamento.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4']} className="w-full">
+                                <AccordionItem value="item-1"><AccordionTrigger>Investimento e Geração de Leads</AccordionTrigger><AccordionContent className="space-y-4 pt-4"><InputField label="Investimento em Tráfego" id="investimentoTráfego" value={inputs.investimentoTráfego} onChange={handleInputChange} /><InputField label="Custo por Lead (CPL) Estimado" id="cplEstimado" value={inputs.cplEstimado} onChange={handleInputChange} /><InputField label="Tamanho da Lista de E-mails" id="listaEmailsExistente" value={inputs.listaEmailsExistente} onChange={handleInputChange} unit="Leads" /></AccordionContent></AccordionItem>
+                                <AccordionItem value="item-2"><AccordionTrigger>Engajamento do Pré-Lançamento</AccordionTrigger><AccordionContent className="space-y-4 pt-4"><SliderField label="Taxa de Participação nos CPLs" id="taxaParticipacaoCPL" value={inputs.taxaParticipacaoCPL} onChange={handleInputChange} helpText="Dos leads gerados, quantos % assistirão seus conteúdos gratuitos de aquecimento (CPLs)." /><SliderField label="Taxa de Cliques para Página de Vendas" id="taxaCliquesPaginaVendas" value={inputs.taxaCliquesPaginaVendas} onChange={handleInputChange} helpText="Dos leads que participaram, quantos % clicarão para visitar a página de vendas." /></AccordionContent></AccordionItem>
+                                <AccordionItem value="item-3"><AccordionTrigger>A Oferta e a Conversão</AccordionTrigger><AccordionContent className="space-y-4 pt-4"><InputField label="Preço do Produto Principal" id="precoProdutoPrincipal" value={inputs.precoProdutoPrincipal} onChange={handleInputChange} /><SliderField label="Taxa de Conversão da Página de Vendas" id="taxaConversaoPaginaVendas" value={inputs.taxaConversaoPaginaVendas} onChange={handleInputChange} /><div className="space-y-4 pt-4 border-t border-gray-700"><div className="flex items-center space-x-2"><Checkbox id="habilitarOrderBump" checked={inputs.habilitarOrderBump} onCheckedChange={(c) => handleCheckboxChange('habilitarOrderBump', !!c)} /><label htmlFor="habilitarOrderBump" className="text-sm">Habilitar Order Bump?</label></div>{inputs.habilitarOrderBump && (<><InputField label="Preço do Order Bump" id="precoOrderBump" value={inputs.precoOrderBump} onChange={handleInputChange} /><SliderField label="Taxa de Adesão ao Order Bump" id="taxaAdesaoOrderBump" value={inputs.taxaAdesaoOrderBump} onChange={handleInputChange} /></>)}</div><div className="space-y-4 pt-4 border-t border-gray-700"><div className="flex items-center space-x-2"><Checkbox id="habilitarUpsell" checked={inputs.habilitarUpsell} onCheckedChange={(c) => handleCheckboxChange('habilitarUpsell', !!c)} /><label htmlFor="habilitarUpsell" className="text-sm">Habilitar Upsell?</label></div>{inputs.habilitarUpsell && (<><InputField label="Preço do Upsell" id="precoUpsell" value={inputs.precoUpsell} onChange={handleInputChange} /><SliderField label="Taxa de Adesão ao Upsell" id="taxaAdesaoUpsell" value={inputs.taxaAdesaoUpsell} onChange={handleInputChange} /></>)}</div></AccordionContent></AccordionItem>
+                                <AccordionItem value="item-4"><AccordionTrigger>Variáveis Financeiras</AccordionTrigger><AccordionContent className="space-y-4 pt-4"><InputField label="Taxa da Plataforma/Gateway" id="taxaPlataforma" value={inputs.taxaPlataforma} onChange={handleInputChange} unit="%" /><SliderField label="Taxa de Aprovação de Pagamentos" id="taxaAprovacaoPagamentos" value={inputs.taxaAprovacaoPagamentos} onChange={handleInputChange} helpText="Considera boletos não pagos e cartões recusados." /><SliderField label="Taxa de Reembolso Estimada" id="taxaReembolso" value={inputs.taxaReembolso} onChange={handleInputChange} /></AccordionContent></AccordionItem>
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Coluna 2: Funil */}
+                <div className="lg:col-span-5 flex flex-col items-center justify-center">
+                   <Funnel3D data={funnelForChart} formatCurrency={formatCurrency} roas={calculations.roas} />
+                </div>
+
+                {/* Coluna 3: Saídas */}
+                <div className="lg:col-span-4 space-y-6">
+                    <Card className="bg-gray-800/50 border-gray-700">
+                        <CardHeader><CardTitle className="text-xl text-white">Projeções e Análise</CardTitle></CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <FinancialCard title="Faturação Bruta" value={formatCurrency(calculations.faturamentoBruto)} icon={DollarSign} />
+                                <FinancialCard title="Lucro Líquido" value={formatCurrency(calculations.lucroLiquido)} icon={TrendingUp} />
+                                <FinancialCard title="ROAS" value={`${calculations.roas.toFixed(2)}x`} icon={BarChart} />
+                                <FinancialCard title="CAC" value={formatCurrency(calculations.cac)} icon={Target} />
+                                <FinancialCard title="Ticket Médio" value={formatCurrency(calculations.ticketMedio)} icon={ShoppingCart} />
+                                <FinancialCard title="Vendas" value={calculations.vendasRealizadas.toString()} icon={Users} />
+                            </div>
+                            <Accordion type="single" collapsible><AccordionItem value="financial-details"><AccordionTrigger>Detalhamento Financeiro</AccordionTrigger><AccordionContent className="text-sm space-y-2 pt-2"><div className="flex justify-between"><span>Receita do Produto Principal:</span> <span className="font-medium">{formatCurrency(calculations.receitaProdutoPrincipal)}</span></div><div className="flex justify-between"><span>Receita do Order Bump:</span> <span className="font-medium text-green-400">+ {formatCurrency(calculations.receitaOrderBump)}</span></div><div className="flex justify-between"><span>Receita do Upsell:</span> <span className="font-medium text-green-400">+ {formatCurrency(calculations.receitaUpsell)}</span></div><hr className="border-gray-600 my-2" /><div className="flex justify-between font-bold"><span>Faturação Total Bruta:</span> <span>{formatCurrency(calculations.faturamentoBruto)}</span></div><div className="flex justify-between text-red-400"><span>- Investimento em Tráfego:</span> <span>{formatCurrency(inputs.investimentoTráfego)}</span></div><div className="flex justify-between text-red-400"><span>- Taxas da Plataforma:</span> <span>{formatCurrency(calculations.custoTaxas)}</span></div><div className="flex justify-between text-red-400"><span>- Reembolsos Estimados:</span> <span>{formatCurrency(calculations.custoReembolso)}</span></div><hr className="border-gray-600 my-2" /><div className="flex justify-between font-bold text-xl text-green-300"><span>Lucro Líquido do Lançamento:</span> <span>{formatCurrency(calculations.lucroLiquido)}</span></div></AccordionContent></AccordionItem></Accordion>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-gray-800/50 border-gray-700">
+                        <CardHeader><CardTitle className="text-xl text-white flex items-center gap-2"><Sparkles className="text-purple-400" />Análise de Alavancagem com IA</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                             <Button
+                                variant="default"
+                                className="w-full justify-center bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                                onClick={handleGeminiAnalysis}
+                                disabled={isAnalyzing}
+                            >
+                                {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                                {isAnalyzing ? 'A analisar...' : 'Analisar Cenário com IA'}
+                            </Button>
+                            {insight && (
+                                <div className="mt-4 p-4 bg-gray-900/70 border border-purple-500/30 rounded-md text-sm text-gray-300 prose prose-invert prose-sm max-w-none">
+                                    <p className="whitespace-pre-wrap font-sans">{insight}</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex gap-4">
+                        <Button className="w-full" variant="outline"><Save className="h-4 w-4 mr-2" /> Salvar Cenário</Button>
+                        <Button className="w-full"><FileDown className="h-4 w-4 mr-2" /> Exportar PDF</Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
