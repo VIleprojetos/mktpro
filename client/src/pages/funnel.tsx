@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from '@/lib/api';
+import { apiRequest } from '../lib/api'; // Corrigido para caminho relativo
 import {
     DollarSign,
     Target,
@@ -307,8 +307,8 @@ export default function LaunchSimulatorPage() {
     };
 
     const handleExportPdf = () => {
-        const { jsPDF } = (window as any).jspdf || {};
-        const html2canvas = (window as any).html2canvas;
+        const { jsPDF } = window.jspdf || {};
+        const html2canvas = window.html2canvas;
 
         if (!jsPDF || !html2canvas) {
             toast({ title: "Erro", description: "Recursos de exportação não estão prontos. Por favor, recarregue a página e tente novamente.", variant: "destructive" });
