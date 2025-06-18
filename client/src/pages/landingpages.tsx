@@ -12,13 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { MoreHorizontal, Edit, Bot, Loader2, Link as LinkIcon, Save, ExternalLink, Palette, Zap, Target, Settings, Sparkles, Wand2, Eye, Code, Layers, Rocket, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PuckEditor } from '@/components/PuckEditor'; // <<< ALTERADO
+import { PuckEditor, Data } from '@/components/PuckEditor'; // Updated import
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import type { Data } from '@puckeditor/core';
 
 const generateLpFormSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
@@ -42,7 +41,7 @@ type GenerateLpFormData = z.infer<typeof generateLpFormSchema>;
 
 interface LandingPageOptions {
   style?: 'modern' | 'minimal' | 'bold' | 'elegant' | 'tech' | 'startup';
-  colorScheme?: 'dark' | 'light' | 'gradient', 'neon', 'earth', 'ocean';
+  colorScheme?: 'dark' | 'light' | 'gradient' | 'neon' | 'earth' | 'ocean';
   industry?: string;
   targetAudience?: string;
   primaryCTA?: string;
@@ -76,11 +75,28 @@ export default function LandingPages() {
 
   const form = useForm<GenerateLpFormData>({
     resolver: zodResolver(generateLpFormSchema),
-    defaultValues: { name: '', campaignId: null, reference: '', prompt: '', style: 'modern', colorScheme: 'dark', industry: '', targetAudience: '', primaryCTA: 'Começar Agora', secondaryCTA: 'Saber Mais', includeTestimonials: true, includePricing: false, includeStats: true, includeFAQ: true, animationsLevel: 'moderate' },
+    defaultValues: { 
+      name: '', 
+      campaignId: null, 
+      reference: '', 
+      prompt: '', 
+      style: 'modern', 
+      colorScheme: 'dark', 
+      industry: '', 
+      targetAudience: '', 
+      primaryCTA: 'Começar Agora', 
+      secondaryCTA: 'Saber Mais', 
+      includeTestimonials: true, 
+      includePricing: false, 
+      includeStats: true, 
+      includeFAQ: true, 
+      animationsLevel: 'moderate' 
+    },
   });
 
   const previewMutation = useMutation({
-    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions }) => apiRequest('POST', '/api/landingpages/preview-advanced', data).then(res => res.json()),
+    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions }) => 
+      apiRequest('POST', '/api/landingpages/preview-advanced', data).then(res => res.json()),
     onSuccess: (data: { htmlContent: string }) => {
       setPreviewHtml(data.htmlContent);
       setPreviewVariations([]);
@@ -93,7 +109,8 @@ export default function LandingPages() {
   });
 
   const variationsMutation = useMutation({
-    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions; count?: number }) => apiRequest('POST', '/api/landingpages/generate-variations', data).then(res => res.json()),
+    mutationFn: (data: { prompt: string; reference?: string; options?: LandingPageOptions; count?: number }) => 
+      apiRequest('POST', '/api/landingpages/generate-variations', data).then(res => res.json()),
     onSuccess: (data: { variations: string[] }) => {
       setPreviewVariations(data.variations);
       setPreviewHtml(data.variations[0] || null);
@@ -106,7 +123,8 @@ export default function LandingPages() {
   });
 
   const saveAndEditMutation = useMutation({
-    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: { html: string; css: string }; generationOptions?: LandingPageOptions }) => apiRequest('POST', '/api/landingpages', data).then(res => res.json()),
+    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: Data; generationOptions?: LandingPageOptions }) => 
+      apiRequest('POST', '/api/landingpages', data).then(res => res.json()),
     onSuccess: (savedLp: LpType) => {
       toast({ title: "Página Salva com Sucesso! 💾", description: "Abrindo o editor visual..." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
@@ -119,7 +137,8 @@ export default function LandingPages() {
   });
 
   const updateLpMutation = useMutation({
-    mutationFn: (data: { id: number, grapesJsData: Data }) => apiRequest('PUT', `/api/landingpages/${data.id}`, { grapesJsData: data.grapesJsData }),
+    mutationFn: (data: { id: number, grapesJsData: Data }) => 
+      apiRequest('PUT', `/api/landingpages/${data.id}`, { grapesJsData: data.grapesJsData }),
     onSuccess: () => {
       toast({ title: "Alterações Salvas! ✅", description: "Sua landing page foi atualizada com sucesso." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
@@ -130,7 +149,8 @@ export default function LandingPages() {
   });
 
   const optimizeMutation = useMutation({
-    mutationFn: (data: { html: string; goals: string[] }) => apiRequest('POST', '/api/landingpages/optimize', data).then(res => res.json()),
+    mutationFn: (data: { html: string; goals: string[] }) => 
+      apiRequest('POST', '/api/landingpages/optimize', data).then(res => res.json()),
     onSuccess: (data: { htmlContent: string }) => {
       setPreviewHtml(data.htmlContent);
       toast({ title: "Página Otimizada! ⚡", description: "Aplicamos melhorias para aumentar a conversão." });
@@ -143,7 +163,19 @@ export default function LandingPages() {
   const onGenerateSubmit = (data: GenerateLpFormData) => {
     setPreviewHtml(null);
     setPreviewVariations([]);
-    const options: LandingPageOptions = { style: data.style, colorScheme: data.colorScheme, industry: data.industry, targetAudience: data.targetAudience, primaryCTA: data.primaryCTA, secondaryCTA: data.secondaryCTA, includeTestimonials: data.includeTestimonials, includePricing: data.includePricing, includeStats: data.includeStats, includeFAQ: data.includeFAQ, animationsLevel: data.animationsLevel, };
+    const options: LandingPageOptions = { 
+      style: data.style, 
+      colorScheme: data.colorScheme, 
+      industry: data.industry, 
+      targetAudience: data.targetAudience, 
+      primaryCTA: data.primaryCTA, 
+      secondaryCTA: data.secondaryCTA, 
+      includeTestimonials: data.includeTestimonials, 
+      includePricing: data.includePricing, 
+      includeStats: data.includeStats, 
+      includeFAQ: data.includeFAQ, 
+      animationsLevel: data.animationsLevel, 
+    };
     previewMutation.mutate({ prompt: data.prompt, reference: data.reference, options });
   };
 
@@ -153,7 +185,19 @@ export default function LandingPages() {
       toast({ title: "Prompt necessário", description: "Por favor, preencha a descrição da página.", variant: "destructive"});
       return;
     }
-    const options: LandingPageOptions = { style: data.style, colorScheme: data.colorScheme, industry: data.industry, targetAudience: data.targetAudience, primaryCTA: data.primaryCTA, secondaryCTA: data.secondaryCTA, includeTestimonials: data.includeTestimonials, includePricing: data.includePricing, includeStats: data.includeStats, includeFAQ: data.includeFAQ, animationsLevel: data.animationsLevel, };
+    const options: LandingPageOptions = { 
+      style: data.style, 
+      colorScheme: data.colorScheme, 
+      industry: data.industry, 
+      targetAudience: data.targetAudience, 
+      primaryCTA: data.primaryCTA, 
+      secondaryCTA: data.secondaryCTA, 
+      includeTestimonials: data.includeTestimonials, 
+      includePricing: data.includePricing, 
+      includeStats: data.includeStats, 
+      includeFAQ: data.includeFAQ, 
+      animationsLevel: data.animationsLevel, 
+    };
     variationsMutation.mutate({ prompt: data.prompt, reference: data.reference, options, count: 3 });
   };
 
@@ -163,370 +207,651 @@ export default function LandingPages() {
     optimizeMutation.mutate({ html: currentHtml, goals: ['conversion', 'performance', 'accessibility'] });
   };
   
+// Continuação da função handleEditClick (estava incompleta)
   const handleEditClick = () => {
     const currentHtml = getCurrentPreview();
     if (!currentHtml) return;
     const formData = form.getValues();
-    const generationOptions: LandingPageOptions = { style: formData.style, colorScheme: formData.colorScheme, industry: formData.industry, targetAudience: formData.targetAudience, primaryCTA: formData.primaryCTA, secondaryCTA: formData.secondaryCTA, includeTestimonials: formData.includeTestimonials, includePricing: formData.includePricing, includeStats: formData.includeStats, includeFAQ: formData.includeFAQ, animationsLevel: formData.animationsLevel, };
-    saveAndEditMutation.mutate({ name: formData.name, campaignId: formData.campaignId || null, grapesJsData: { html: currentHtml, css: '' }, generationOptions: generationOptions, });
+    const generationOptions: LandingPageOptions = { 
+      style: formData.style, 
+      colorScheme: formData.colorScheme, 
+      industry: formData.industry, 
+      targetAudience: formData.targetAudience, 
+      primaryCTA: formData.primaryCTA, 
+      secondaryCTA: formData.secondaryCTA, 
+      includeTestimonials: formData.includeTestimonials, 
+      includePricing: formData.includePricing, 
+      includeStats: formData.includeStats, 
+      includeFAQ: formData.includeFAQ, 
+      animationsLevel: formData.animationsLevel,
+    };
+
+    // Criar dados compatíveis com o PuckEditor
+    const grapesJsData: Data = {
+      html: currentHtml,
+      css: '', // CSS será extraído do HTML inline ou definido separadamente
+      components: null,
+      styles: null,
+    };
+
+    // Salvar a página e abrir o editor
+    saveAndEditMutation.mutate({
+      name: formData.name,
+      campaignId: formData.campaignId,
+      grapesJsData,
+      generationOptions
+    });
   };
 
-  const handleOpenInNewTab = () => {
+  const getCurrentPreview = (): string | null => {
+    if (previewVariations.length > 0) {
+      return previewVariations[activePreview] || null;
+    }
+    return previewHtml;
+  };
+
+  const handleSaveFromEditor = (data: Data) => {
+    if (!editingLp) return;
+    updateLpMutation.mutate({
+      id: editingLp.id,
+      grapesJsData: data
+    });
+  };
+
+  const handleBackFromEditor = () => {
+    setShowEditor(false);
+    setEditingLp(null);
+  };
+
+  const openPreviewWindow = () => {
     const currentHtml = getCurrentPreview();
-    if (currentHtml) {
-      const newWindow = window.open();
-      if (newWindow) {
-        newWindow.document.write(currentHtml);
-        newWindow.document.close();
-      } else {
-        toast({ title: "Erro", description: "Não foi possível abrir a nova aba. Verifique se o seu navegador está bloqueando pop-ups.", variant: "destructive" });
-      }
+    if (!currentHtml) return;
+    
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(currentHtml);
+      newWindow.document.close();
     }
   };
 
-  const handleSaveFromEditor = (id: number, data: Data) => {
-    updateLpMutation.mutate({ id, grapesJsData: data });
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      'draft': { color: 'secondary', label: 'Rascunho' },
+      'published': { color: 'default', label: 'Publicado' },
+      'archived': { color: 'outline', label: 'Arquivado' }
+    };
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    return <Badge variant={config.color as any}>{config.label}</Badge>;
   };
 
-  const handleEditExistingLp = (lp: LpType) => {
-    setEditingLp(lp);
-    setShowEditor(true);
-  };
-
-  const getCurrentPreview = () => {
-    return previewVariations.length > 0 ? previewVariations[activePreview] : previewHtml;
-  };
-
-  const isGenerating = previewMutation.isPending || variationsMutation.isPending;
-
+  // Se estiver no modo editor, mostrar apenas o editor
   if (showEditor && editingLp) {
     return (
       <PuckEditor
-        key={editingLp.id}
-        initialData={typeof editingLp.grapesJsData === 'object' && editingLp.grapesJsData !== null ? editingLp.grapesJsData as Data : undefined}
-        onSave={(data) => handleSaveFromEditor(editingLp.id, data)}
-        onBack={() => {
-          setShowEditor(false);
-          setEditingLp(null);
-        }}
+        initialData={editingLp.grapesJsData as Data}
+        onSave={handleSaveFromEditor}
+        onBack={handleBackFromEditor}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-900 dark:to-gray-900">
-      <div className="container mx-auto p-4 md:p-6 space-y-8">
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <Wand2 className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              AI Landing Page Generator
-            </h1>
-          </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Crie landing pages profissionais em segundos com nossa IA avançada. 
-            Design moderno, alta conversão e totalmente responsivo.
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Landing Pages</h1>
+          <p className="text-muted-foreground">
+            Crie páginas de alta conversão com IA avançada
           </p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-primary">{landingPages.length}</div>
-              <div className="text-sm text-muted-foreground">Páginas Criadas</div>
-            </CardContent>
-          </Card>
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">98%</div>
-              <div className="text-sm text-muted-foreground">Taxa de Sucesso</div>
-            </CardContent>
-          </Card>
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">6</div>
-              <div className="text-sm text-muted-foreground">Estilos Únicos</div>
-            </CardContent>
-          </Card>
-          <Card className="text-center">
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">AI</div>
-              <div className="text-sm text-muted-foreground">Powered</div>
-            </CardContent>
-          </Card>
-        </div>
+      <Tabs defaultValue="create" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="create" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Criar Nova Página
+          </TabsTrigger>
+          <TabsTrigger value="manage" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Gerenciar Páginas
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-          <div className="space-y-6">
-            <Card className="sticky top-6">
+        <TabsContent value="create" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Formulário de Configuração */}
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Bot className="text-primary" />
-                  Configuração da Landing Page
+                  <Bot className="h-5 w-5" />
+                  Configuração da Página
                 </CardTitle>
                 <CardDescription>
-                  Configure todos os detalhes da sua página para obter o melhor resultado
+                  Configure os detalhes e personalize o estilo da sua landing page
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onGenerateSubmit)} className="space-y-6">
-                    <Tabs defaultValue="basic" className="space-y-4">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="basic">Básico</TabsTrigger>
-                        <TabsTrigger value="advanced">Avançado</TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="basic" className="space-y-4">
-                        <FormField control={form.control} name="name" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nome da Página *</FormLabel>
-                              <FormControl><Input placeholder="Ex: Lançamento do Produto Y" {...field} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="campaignId" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Campanha</FormLabel>
-                              <Select onValueChange={(value) => field.onChange(value === "NONE" ? null : parseInt(value))} defaultValue={field.value === null ? "NONE" : String(field.value)}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Selecione uma campanha" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                  <SelectItem value="NONE">Nenhuma campanha</SelectItem>
-                                  {campaigns.map(c => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="prompt" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Descrição da Página *</FormLabel>
-                              <FormControl><Textarea placeholder="Descreva detalhadamente sua landing page: objetivo, público-alvo, principais seções, produtos/serviços, tom de voz, etc..." rows={6} className="resize-none" {...field} /></FormControl>
-                              <FormDescription>Seja específico para obter melhores resultados (mínimo 20 caracteres)</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="reference" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>URL de Referência (Opcional)</FormLabel>
-                              <FormControl><Input placeholder="https://exemplo.com/inspiracao" {...field} /></FormControl>
-                              <FormDescription>URL de uma página que serve como inspiração visual</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                        )} />
-                      </TabsContent>
+                  <form onSubmit={form.handleSubmit(onGenerateSubmit)} className="space-y-4">
+                    {/* Informações Básicas */}
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome da Página</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Página de Produto SaaS" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                      <TabsContent value="advanced" className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField control={form.control} name="style" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Estilo Visual</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="modern">Moderno</SelectItem>
-                                    <SelectItem value="minimal">Minimalista</SelectItem>
-                                    <SelectItem value="bold">Ousado</SelectItem>
-                                    <SelectItem value="elegant">Elegante</SelectItem>
-                                    <SelectItem value="tech">Tecnológico</SelectItem>
-                                    <SelectItem value="startup">Startup</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </FormItem>
-                          )} />
-                          <FormField control={form.control} name="colorScheme" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Esquema de Cores</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="dark">Escuro</SelectItem>
-                                    <SelectItem value="light">Claro</SelectItem>
-                                    <SelectItem value="gradient">Gradiente</SelectItem>
-                                    <SelectItem value="neon">Neon</SelectItem>
-                                    <SelectItem value="earth">Terra</SelectItem>
-                                    <SelectItem value="ocean">Oceano</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </FormItem>
-                          )} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField control={form.control} name="industry" render={({ field }) => (
-                              <FormItem><FormLabel>Indústria/Setor</FormLabel><FormControl><Input placeholder="Ex: SaaS, E-commerce, Saúde" {...field} /></FormControl></FormItem>
-                          )} />
-                          <FormField control={form.control} name="targetAudience" render={({ field }) => (
-                              <FormItem><FormLabel>Público-Alvo</FormLabel><FormControl><Input placeholder="Ex: Gestores de TI, Empreendedores" {...field} /></FormControl></FormItem>
-                          )} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField control={form.control} name="primaryCTA" render={({ field }) => (
-                              <FormItem><FormLabel>CTA Primário</FormLabel><FormControl><Input placeholder="Ex: Teste Grátis por 14 Dias" {...field} /></FormControl></FormItem>
-                          )} />
-                          <FormField control={form.control} name="secondaryCTA" render={({ field }) => (
-                              <FormItem><FormLabel>CTA Secundário</FormLabel><FormControl><Input placeholder="Ex: Ver Demonstração" {...field} /></FormControl></FormItem>
-                          )} />
-                        </div>
-                        <FormField control={form.control} name="animationsLevel" render={({ field }) => (
+                      <FormField
+                        control={form.control}
+                        name="campaignId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Campanha (Opcional)</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(value === "NONE" ? null : Number(value))}
+                              value={field.value?.toString() || "NONE"}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione uma campanha" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="NONE">Nenhuma campanha</SelectItem>
+                                {campaigns.map((campaign) => (
+                                  <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                                    {campaign.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="reference"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>URL de Referência (Opcional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://exemplo.com" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              URL de uma página similar para inspiração
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="prompt"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descrição da Página</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Descreva o produto/serviço, público-alvo, benefícios principais..."
+                                className="min-h-[100px]"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Seja específico sobre seu produto, público e objetivos
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Configurações de Design */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Palette className="h-4 w-4" />
+                        Design & Estilo
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="style"
+                          render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nível de Animações</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <FormLabel>Estilo</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="none">Nenhuma</SelectItem>
-                                  <SelectItem value="subtle">Sutil</SelectItem>
-                                  <SelectItem value="moderate">Moderada</SelectItem>
-                                  <SelectItem value="dynamic">Dinâmica</SelectItem>
+                                  <SelectItem value="modern">Moderno</SelectItem>
+                                  <SelectItem value="minimal">Minimalista</SelectItem>
+                                  <SelectItem value="bold">Arrojado</SelectItem>
+                                  <SelectItem value="elegant">Elegante</SelectItem>
+                                  <SelectItem value="tech">Tecnológico</SelectItem>
+                                  <SelectItem value="startup">Startup</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <FormMessage />
                             </FormItem>
-                        )} />
-                        <Separator />
-                        <div className="space-y-3">
-                          <div className="text-sm font-medium">Seções Incluídas</div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="includeTestimonials" render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Depoimentos</FormLabel></FormItem>
-                            )} />
-                            <FormField control={form.control} name="includePricing" render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Preços</FormLabel></FormItem>
-                            )} />
-                            <FormField control={form.control} name="includeStats" render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">Estatísticas</FormLabel></FormItem>
-                            )} />
-                            <FormField control={form.control} name="includeFAQ" render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-sm">FAQ</FormLabel></FormItem>
-                            )} />
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="colorScheme"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Esquema de Cores</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="dark">Escuro</SelectItem>
+                                  <SelectItem value="light">Claro</SelectItem>
+                                  <SelectItem value="gradient">Gradiente</SelectItem>
+                                  <SelectItem value="neon">Neon</SelectItem>
+                                  <SelectItem value="earth">Terra</SelectItem>
+                                  <SelectItem value="ocean">Oceano</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="primaryCTA"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CTA Principal</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Começar Agora" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="secondaryCTA"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CTA Secundário</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Saber Mais" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
                     <Separator />
-                    <div className="flex flex-col gap-3">
-                      <Button type="submit" className="w-full" disabled={isGenerating} size="lg">
-                        {isGenerating ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Gerando sua página...</>) : (<><Sparkles className="mr-2 h-4 w-4"/>Gerar Landing Page</>)}
-                      </Button>
-                      <Button type="button" variant="outline" onClick={onGenerateVariations} disabled={isGenerating || !form.getValues().prompt} className="w-full">
-                        {variationsMutation.isPending ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Criando variações...</>) : (<><Layers className="mr-2 h-4 w-4"/>Gerar 3 Variações</>)}
+
+                    {/* Seções e Conteúdo */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Layers className="h-4 w-4" />
+                        Conteúdo & Seções
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="industry"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Setor/Indústria</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Ex: SaaS, E-commerce" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="targetAudience"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Público-Alvo</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Ex: Empresários, Desenvolvedores" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <FormField
+                          control={form.control}
+                          name="includeTestimonials"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Incluir Depoimentos</FormLabel>
+                                <FormDescription>Adicionar seção de testimoniais</FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="includePricing"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Incluir Preços</FormLabel>
+                                <FormDescription>Adicionar tabela de preços</FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="includeStats"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Incluir Estatísticas</FormLabel>
+                                <FormDescription>Adicionar números e métricas</FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="includeFAQ"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between">
+                              <div>
+                                <FormLabel>Incluir FAQ</FormLabel>
+                                <FormDescription>Adicionar perguntas frequentes</FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="animationsLevel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nível de Animações</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">Sem animações</SelectItem>
+                                <SelectItem value="subtle">Sutis</SelectItem>
+                                <SelectItem value="moderate">Moderadas</SelectItem>
+                                <SelectItem value="dynamic">Dinâmicas</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Botões de Ação */}
+                    <div className="flex gap-2 pt-4">
+                      <Button 
+                        type="submit" 
+                        disabled={previewMutation.isPending}
+                        className="flex-1"
+                      >
+                        {previewMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Gerando...
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="h-4 w-4 mr-2" />
+                            Gerar Página
+                          </>
+                        )}
                       </Button>
                     </div>
                   </form>
                 </Form>
               </CardContent>
             </Card>
-          </div>
-          <div className="space-y-6">
+
+            {/* Preview da Página */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
                     <Eye className="h-5 w-5" />
-                    Preview da Landing Page
-                    {previewVariations.length > 0 && (<Badge variant="secondary">{activePreview + 1} de {previewVariations.length}</Badge>)}
-                  </CardTitle>
-                  {previewVariations.length > 1 && (
+                    Preview
+                  </span>
+                  {previewHtml && (
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setActivePreview(Math.max(0, activePreview - 1))} disabled={activePreview === 0}>Anterior</Button>
-                      <Button variant="outline" size="sm" onClick={() => setActivePreview(Math.min(previewVariations.length - 1, activePreview + 1))} disabled={activePreview === previewVariations.length - 1}>Próxima</Button>
+                      {previewVariations.length > 1 && (
+                        <div className="flex items-center gap-1">
+                          {previewVariations.map((_, index) => (
+                            <Button
+                              key={index}
+                              variant={activePreview === index ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                setActivePreview(index);
+                                setPreviewHtml(previewVariations[index]);
+                              }}
+                            >
+                              {index + 1}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                      <Button variant="outline" size="sm" onClick={openPreviewWindow}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
                     </div>
                   )}
-                </div>
+                </CardTitle>
+                <CardDescription>
+                  {previewHtml ? "Sua página está pronta! Use as ações abaixo para continuar." : "Configure e gere sua landing page para ver o preview"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {getCurrentPreview() ? (
+                {previewHtml ? (
                   <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleEditClick} disabled={saveAndEditMutation.isPending} size="sm">
-                        {saveAndEditMutation.isPending ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Edit className="mr-2 h-4 w-4" />)}
-                        Salvar e Editar
-                      </Button>
-                      <Button variant="outline" onClick={handleOpenInNewTab} size="sm"><ExternalLink className="mr-2 h-4 w-4" />Abrir em Nova Aba</Button>
-                      <Button variant="outline" onClick={handleOptimize} disabled={optimizeMutation.isPending} size="sm">
-                        {optimizeMutation.isPending ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Zap className="mr-2 h-4 w-4" />)}
-                        Otimizar
-                      </Button>
+                    {/* Preview iframe */}
+                    <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '400px' }}>
+                      <iframe
+                        srcDoc={previewHtml}
+                        className="w-full h-full"
+                        title="Landing Page Preview"
+                      />
                     </div>
-                    <div className="border rounded-lg overflow-hidden">
-                      <iframe srcDoc={getCurrentPreview()} className="w-full h-[600px] border-0" title="Landing Page Preview" />
+                    
+                    {/* Ações do Preview */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        onClick={onGenerateVariations}
+                        disabled={variationsMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {variationsMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Gerando...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4 mr-2" />
+                            Gerar Variações
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleOptimize}
+                        disabled={optimizeMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {optimizeMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Otimizando...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-4 w-4 mr-2" />
+                            Otimizar
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleEditClick}
+                        disabled={saveAndEditMutation.isPending}
+                        size="sm"
+                      >
+                        {saveAndEditMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Salvar & Editar
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-16 text-muted-foreground">
-                    <Bot className="mx-auto h-16 w-16 mb-4 opacity-50" />
-                    <p className="text-lg mb-2">Nenhuma página gerada ainda</p>
-                    <p className="text-sm">Preencha o formulário e clique em "Gerar Landing Page"</p>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Configure sua página e clique em "Gerar Página" para ver o preview</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Rocket className="h-5 w-5" />Suas Landing Pages</CardTitle>
-            <CardDescription>Gerencie e edite suas páginas existentes</CardDescription>
-          </CardHeader>
-          <CardContent>
+        </TabsContent>
+
+        <TabsContent value="manage" className="space-y-6">
+          {/* Lista de Landing Pages Existentes */}
+          <div className="grid gap-4">
             {landingPages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Settings className="mx-auto h-12 w-12 mb-3 opacity-50" />
-                <p>Nenhuma landing page criada ainda</p>
-                <p className="text-sm">Crie sua primeira página usando o gerador acima</p>
-              </div>
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="font-semibold mb-2">Nenhuma landing page criada</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Comece criando sua primeira página na aba "Criar Nova Página"
+                  </p>
+                </CardContent>
+              </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {landingPages.map((lp) => (
-                  <Card key={lp.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-base">{lp.name}</CardTitle>
-                          <CardDescription className="text-xs">Criada em {new Date(lp.createdAt).toLocaleDateString('pt-BR')}</CardDescription>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleEditExistingLp(lp)}><MoreHorizontal className="h-4 w-4" /></Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-3">
-                        {lp.campaignId && (<Badge variant="outline" className="text-xs">Campanha: {campaigns.find(c => c.id === lp.campaignId)?.name || 'N/A'}</Badge>)}
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditExistingLp(lp)} className="flex-1"><Edit className="mr-2 h-3 w-3" />Editar</Button>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            const htmlContent = (lp.grapesJsData as any)?.html || '';
-                            if (htmlContent) {
-                              const newWindow = window.open();
-                              if (newWindow) {
-                                newWindow.document.write(htmlContent);
-                                newWindow.document.close();
-                              }
-                            }
-                          }}><ExternalLink className="h-3 w-3" /></Button>
+              landingPages.map((lp) => (
+                <Card key={lp.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <h3 className="font-semibold">{lp.name}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getStatusBadge(lp.status)}
+                            {lp.campaign && (
+                              <Badge variant="outline">
+                                <Target className="h-3 w-3 mr-1" />
+                                {lp.campaign.name}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <div className="flex items-center gap-2">
+                        {lp.url && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={lp.url} target="_blank" rel="noopener noreferrer">
+                              <LinkIcon className="h-4 w-4 mr-2" />
+                              Ver Online
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingLp(lp);
+                            setShowEditor(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
             )}
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-r from-primary/5 to-purple-500/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold">Dicas para Melhores Resultados</h3>
-              </div>
-              <div className="text-sm text-muted-foreground max-w-4xl mx-auto">
-                <p className="mb-2">• <strong>Seja específico:</strong> Descreva detalhadamente seu produto, público-alvo e objetivos</p>
-                <p className="mb-2">• <strong>Use referências:</strong> Adicione URLs de páginas que inspiram seu design</p>
-                <p className="mb-2">• <strong>Teste variações:</strong> Gere múltiplas versões e compare os resultados</p>
-                <p>• <strong>Otimize sempre:</strong> Use a função de otimização para melhorar conversões</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
