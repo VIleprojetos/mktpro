@@ -420,33 +420,44 @@ class GeminiService {
     }, reference);
   }
 
-  // Método para gerar múltiplas variações
+  // Método para gerar múltiplas variações (Otimizado para execução paralela)
   public async generateVariations(
     prompt: string,
     count: number = 3,
     baseOptions: LandingPageOptions = {}
   ): Promise<string[]> {
-    const variations: string[] = [];
     const styles: Array<LandingPageOptions['style']> = ['modern', 'minimal', 'bold', 'elegant', 'tech'];
     const colorSchemes: Array<LandingPageOptions['colorScheme']> = ['dark', 'gradient', 'neon', 'ocean'];
+    const animationLevels: Array<LandingPageOptions['animationsLevel']> = ['dynamic', 'moderate', 'subtle'];
 
-    for (let i = 0; i < count; i++) {
+    const variationPromises = Array.from({ length: count }, (_, i) => {
       const options: LandingPageOptions = {
         ...baseOptions,
         style: styles[i % styles.length],
         colorScheme: colorSchemes[i % colorSchemes.length],
-        animationsLevel: i === 0 ? 'dynamic' : i === 1 ? 'moderate' : 'subtle'
+        animationsLevel: animationLevels[i % animationLevels.length]
       };
+      return this.createAdvancedLandingPage(prompt, options);
+    });
 
-      try {
-        const variation = await this.createAdvancedLandingPage(prompt, options);
-        variations.push(variation);
-      } catch (error) {
-        console.error(`Erro ao gerar variação ${i + 1}:`, error);
-      }
+    try {
+      // Executa todas as promessas em paralelo para evitar timeouts
+      const results = await Promise.allSettled(variationPromises);
+      
+      const successfulVariations: string[] = [];
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          successfulVariations.push(result.value);
+        } else {
+          console.error(`Erro ao gerar variação ${index + 1}:`, result.reason);
+        }
+      });
+
+      return successfulVariations;
+    } catch (error) {
+      console.error('[GeminiService] Erro inesperado ao gerar variações:', error);
+      return [];
     }
-
-    return variations;
   }
 
   // Método para otimizar landing page existente
@@ -489,6 +500,28 @@ class GeminiService {
     } catch (error: any) {
       console.error('[GeminiService] Erro ao otimizar landing page:', error);
       throw new Error(`Falha ao otimizar landing page: ${error.message}`);
+    }
+  }
+
+  /**
+   * ✅ NOVO MÉTODO
+   * Gera texto genérico baseado em um prompt.
+   * Necessário para corrigir o erro 'geminiService.generateText is not a function'.
+   */
+  public async generateText(prompt: string): Promise<string> {
+    if (!this.genAI) {
+      throw new Error('A API Key do Gemini não está configurada no servidor.');
+    }
+
+    const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+
+    try {
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      return response.text();
+    } catch (error: any) {
+      console.error('[GeminiService] Erro ao gerar texto:', error);
+      throw new Error(`Falha ao gerar texto: ${error.message}`);
     }
   }
 }
