@@ -1,5 +1,5 @@
 // client/src/components/grapesjs-editor.tsx
-import React, 'useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import grapesjs, { Editor } from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
 import grapesjsPresetWebpage from 'grapesjs-preset-webpage';
@@ -136,7 +136,9 @@ const GrapesJsEditor: React.FC<GrapesJsEditorProps> = ({ initialData, onSave, on
                         <script src="https://cdn.tailwindcss.com"></script>
                         <link rel="stylesheet" href="./style.css">
                     </head>
-                    ${editorInstance.getHtml()}
+                    <body>
+                        ${editorInstance.getHtml()}
+                    </body>
                     </html>
                 `;
                 const css = editorInstance.getCss();
