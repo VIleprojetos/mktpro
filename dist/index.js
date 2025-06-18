@@ -1812,8 +1812,8 @@ function serveStatic(app2) {
 // server/index.ts
 dotenv2.config();
 var app = express3();
-app.use(express3.json());
-app.use(express3.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path4 = req.path;
