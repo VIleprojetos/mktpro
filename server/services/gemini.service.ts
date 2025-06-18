@@ -731,6 +731,7 @@ class GeminiService {
       const response = result.response;
       let htmlContent = response.text();
 
+      // Limpeza e otimização do HTML
       const htmlMatch = htmlContent.match(/<!DOCTYPE html>.*<\/html>/is);
       if (htmlMatch) {
         htmlContent = htmlMatch[0];
@@ -745,6 +746,7 @@ class GeminiService {
         }
       }
 
+      // Otimizações adicionais
       htmlContent = this.optimizeHtmlContent(htmlContent, options);
 
       return htmlContent;
@@ -755,8 +757,10 @@ class GeminiService {
   }
 
   private optimizeHtmlContent(html: string, options: LandingPageOptions): string {
+    // Otimizações de performance e qualidade
     let optimizedHtml = html;
 
+    // Adiciona meta tags de performance se não existirem
     if (!optimizedHtml.includes('preconnect')) {
       optimizedHtml = optimizedHtml.replace(
         '<head>',
@@ -767,6 +771,7 @@ class GeminiService {
       );
     }
 
+    // Melhora as imagens placeholder
     optimizedHtml = optimizedHtml.replace(
       /placehold\.co\/(\d+)x(\d+)/g,
       'placehold.co/$1x$2/0066CC/FFFFFF/png?text=Premium+Image'
@@ -775,6 +780,7 @@ class GeminiService {
     return optimizedHtml;
   }
 
+  // Método para compatibilidade com versão anterior
   public async createAdvancedLandingPage(
     prompt: string,
     options: LandingPageOptions = {},
@@ -783,6 +789,7 @@ class GeminiService {
     return this.createUltraLandingPage(prompt, options, reference);
   }
 
+  // Método de compatibilidade
   public async createLandingPageFromPrompt(
     prompt: string,
     reference?: string
@@ -794,6 +801,7 @@ class GeminiService {
     }, reference);
   }
 
+  // Geração de múltiplas variações ultra-premium
   public async generatePremiumVariations(
     prompt: string,
     count: number = 3,
@@ -824,6 +832,7 @@ class GeminiService {
         const variation = await this.createUltraLandingPage(prompt, options);
         variations.push(variation);
         
+        // Delay para evitar rate limiting
         if (i < count - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -835,6 +844,7 @@ class GeminiService {
     return variations;
   }
 
+  // Otimização ultra-avançada de landing pages
   public async optimizeUltraLandingPage(
     currentHtml: string,
     optimizationGoals: string[] = ['conversion', 'performance', 'accessibility', 'seo']
@@ -915,6 +925,7 @@ class GeminiService {
     }
   }
 
+  // Análise de conversão da landing page
   public async analyzeLandingPageConversion(html: string): Promise<{
     score: number;
     recommendations: string[];
