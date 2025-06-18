@@ -45,7 +45,7 @@ const COMPONENT_TYPES = {
       padding: '16px',
       fontSize: '16px',
       lineHeight: '1.6',
-      color: '#333333',
+      color: '#e2e8f0', // Dark theme text color
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }
   },
@@ -58,7 +58,7 @@ const COMPONENT_TYPES = {
       padding: '16px',
       fontSize: '32px',
       fontWeight: 'bold',
-      color: '#1a202c',
+      color: '#f8fafc', // Dark theme heading color
       lineHeight: '1.2',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }
@@ -87,7 +87,7 @@ const COMPONENT_TYPES = {
     label: 'Imagem',
     icon: Image,
     category: 'media',
-    defaultContent: 'https://via.placeholder.com/400x200/e2e8f0/64748b?text=Sua+Imagem',
+    defaultContent: 'https://via.placeholder.com/400x200/4a5568/e2e8f0?text=Sua+Imagem',
     defaultStyles: {
       width: '100%',
       maxWidth: '400px',
@@ -104,10 +104,10 @@ const COMPONENT_TYPES = {
     defaultStyles: {
       padding: '24px',
       margin: '16px 0',
-      border: '2px dashed #e2e8f0',
+      border: '2px dashed #4a5568', // Dark theme border
       borderRadius: '8px',
       minHeight: '100px',
-      backgroundColor: '#f8f9fa',
+      backgroundColor: '#1f2937', // Dark theme background
       position: 'relative'
     }
   },
@@ -119,11 +119,11 @@ const COMPONENT_TYPES = {
       <div style="text-align: center; color: white;">
         <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: bold;">Título Impactante</h1>
         <p style="font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9;">Subtítulo que explica seu valor</p>
-        <button style="background: white; color: #667eea; padding: 16px 32px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Call to Action</button>
+        <button style="background: white; color: #4338ca; padding: 16px 32px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: transform 0.2s;">Call to Action</button>
       </div>
     `,
     defaultStyles: {
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
       padding: '80px 20px',
       textAlign: 'center',
       minHeight: '400px',
@@ -138,16 +138,16 @@ const COMPONENT_TYPES = {
     icon: Layout,
     category: 'layout',
     defaultContent: `
-      <h3 style="margin: 0 0 12px 0; color: #1a202c; font-size: 1.5rem; font-weight: 600;">Título do Card</h3>
-      <p style="margin: 0; color: #4a5568; line-height: 1.6;">Descrição do card. Você pode editar este conteúdo para adicionar mais informações.</p>
+      <h3 style="margin: 0 0 12px 0; color: #f1f5f9; font-size: 1.5rem; font-weight: 600;">Título do Card</h3>
+      <p style="margin: 0; color: #9ca3af; line-height: 1.6;">Descrição do card. Você pode editar este conteúdo para adicionar mais informações.</p>
     `,
     defaultStyles: {
-      border: '1px solid #e2e8f0',
+      border: '1px solid #374151',
       borderRadius: '12px',
       padding: '24px',
       margin: '16px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-      backgroundColor: 'white',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.4)',
+      backgroundColor: '#1f2937',
       transition: 'transform 0.2s, box-shadow 0.2s'
     }
   },
@@ -270,7 +270,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
     }
     
     setIsLoading(false);
-  }, [initialData]);
+  }, [initialData, saveToHistory]);
 
   const addComponent = (type: keyof typeof COMPONENT_TYPES) => {
     const componentType = COMPONENT_TYPES[type];
@@ -346,17 +346,19 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
           margin: 0; 
           padding: 0; 
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+          background-color: #111827; /* Dark background for saved page */
+          color: #e2e8f0; /* Default text color */
         }
         * { 
           box-sizing: border-box; 
         }
         .hover-effect:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.5);
         }
         .button-hover:hover {
           transform: scale(1.05);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
       `;
       
@@ -422,12 +424,12 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <title>Preview</title>
           <style>
-            body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #111827; color: #e2e8f0; }
             * { box-sizing: border-box; }
             .hover-effect { transition: all 0.3s ease; }
-            .hover-effect:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
+            .hover-effect:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
             .button-hover { transition: all 0.2s ease; }
-            .button-hover:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+            .button-hover:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
           </style>
         </head>
         <body>${html}</body>
@@ -482,27 +484,27 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center h-screen bg-gray-900">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-lg text-muted-foreground">Carregando editor...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-400" />
+          <p className="text-lg text-gray-400">Carregando editor...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-50">
+    <div className="flex flex-col h-screen w-full bg-gray-950 text-gray-200">
       {/* Enhanced Header */}
-      <header className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
+      <header className="flex items-center justify-between p-4 border-b bg-gray-900 border-gray-700">
         <div className="flex items-center gap-4">
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button variant="ghost" size="sm" onClick={onBack} className="text-gray-300 hover:bg-gray-700 hover:text-white">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
           )}
-          <h1 className="text-xl font-semibold">Editor Visual</h1>
+          <h1 className="text-xl font-semibold text-gray-100">Editor Visual</h1>
           <div className="flex items-center gap-2 ml-4">
             <Button
               variant="ghost"
@@ -510,6 +512,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
               onClick={undo}
               disabled={historyIndex <= 0}
               title="Desfazer"
+              className="text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-50"
             >
               <Undo className="h-4 w-4" />
             </Button>
@@ -519,6 +522,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
               onClick={redo}
               disabled={historyIndex >= history.length - 1}
               title="Refazer"
+              className="text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-50"
             >
               <Redo className="h-4 w-4" />
             </Button>
@@ -528,7 +532,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
           <select
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
-            className="px-2 py-1 border rounded text-sm"
+            className="px-2 py-1 border rounded text-sm bg-gray-800 border-gray-600 text-gray-200"
           >
             <option value={50}>50%</option>
             <option value={75}>75%</option>
@@ -540,11 +544,12 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
             variant="outline"
             size="sm"
             onClick={() => setShowCode(!showCode)}
+            className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
           >
             <Code className="h-4 w-4 mr-2" />
             Código
           </Button>
-          <Button variant="outline" size="sm" onClick={handlePreview}>
+          <Button variant="outline" size="sm" onClick={handlePreview} className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
@@ -552,6 +557,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
             size="sm" 
             onClick={handleSave} 
             disabled={isSaving}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isSaving ? (
               <>
@@ -570,12 +576,12 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Enhanced Left sidebar - Components */}
-        <div className="w-64 bg-white border-r flex flex-col shadow-sm">
-          <div className="p-3 border-b">
-            <h3 className="font-medium mb-3">Componentes</h3>
+        <div className="w-64 bg-gray-900 border-r border-gray-700 flex flex-col">
+          <div className="p-3 border-b border-gray-700">
+            <h3 className="font-medium mb-3 text-gray-100">Componentes</h3>
             <div className="flex flex-wrap gap-1">
               <button
-                className={`px-2 py-1 text-xs rounded ${activeCategory === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+                className={`px-2 py-1 text-xs rounded ${activeCategory === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 onClick={() => setActiveCategory('all')}
               >
                 Todos
@@ -583,7 +589,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
               {Object.entries(COMPONENT_CATEGORIES).map(([key, label]) => (
                 <button
                   key={key}
-                  className={`px-2 py-1 text-xs rounded ${activeCategory === key ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+                  className={`px-2 py-1 text-xs rounded ${activeCategory === key ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                   onClick={() => setActiveCategory(key)}
                 >
                   {label}
@@ -599,7 +605,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                   key={type}
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start hover:bg-blue-50"
+                  className="w-full justify-start text-gray-300 hover:bg-gray-700 hover:text-white"
                   onClick={() => addComponent(type as keyof typeof COMPONENT_TYPES)}
                 >
                   <IconComponent className="h-4 w-4 mr-2" />
@@ -611,11 +617,11 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
         </div>
 
         {/* Main canvas area */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-auto p-4" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}>
-            <div className="max-w-4xl mx-auto bg-white min-h-full shadow-lg rounded-lg overflow-hidden">
+        <div className="flex-1 flex flex-col bg-gray-950">
+          <div className="flex-1 overflow-auto p-8" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }}>
+            <div className="max-w-4xl mx-auto bg-gray-900 min-h-full shadow-lg rounded-lg overflow-hidden ring-1 ring-gray-800">
               {components.length === 0 ? (
-                <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <div className="flex items-center justify-center h-64 text-gray-500">
                   <div className="text-center">
                     <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Adicione componentes para começar a construir sua página</p>
@@ -627,36 +633,38 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                     <div
                       key={component.id}
                       className={`relative group ${
-                        selectedComponent === component.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                        selectedComponent === component.id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900' : ''
                       }`}
                       onClick={() => setSelectedComponent(component.id)}
                     >
                       {/* Enhanced Component Controls */}
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white border rounded-lg shadow-lg p-1 flex gap-1">
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-gray-800 border border-gray-600 rounded-lg shadow-lg p-1 flex gap-1">
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             openContentEditor(component);
                           }}
                           title="Editar conteúdo"
+                          className="w-6 h-6 text-gray-300 hover:bg-gray-700"
                         >
                           <Edit3 className="h-3 w-3" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             duplicateComponent(component.id);
                           }}
                           title="Duplicar"
+                          className="w-6 h-6 text-gray-300 hover:bg-gray-700"
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -664,11 +672,12 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                           }}
                           disabled={index === 0}
                           title="Mover para cima"
+                          className="w-6 h-6 text-gray-300 hover:bg-gray-700 disabled:opacity-30"
                         >
-                          ↑
+                          <Move className="h-3 w-3 rotate-[-90deg]" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -676,18 +685,19 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                           }}
                           disabled={index === components.length - 1}
                           title="Mover para baixo"
+                          className="w-6 h-6 text-gray-300 hover:bg-gray-700 disabled:opacity-30"
                         >
-                          ↓
+                           <Move className="h-3 w-3 rotate-90" />
                         </Button>
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteComponent(component.id);
                           }}
                           title="Excluir"
-                          className="text-red-500 hover:text-red-700"
+                          className="w-6 h-6 text-red-400 hover:bg-red-900/50 hover:text-red-300"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -699,16 +709,16 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                           <img 
                             src={component.content} 
                             alt="Component" 
-                            style={{ width: '100%', height: 'auto' }}
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
                           />
                         ) : component.type === 'button' ? (
-                          <button style={{ all: 'inherit' }}>
+                          <button style={{ all: 'inherit', display: 'inline-block' }}>
                             {component.content}
                           </button>
                         ) : component.type === 'spacer' ? (
                           <div style={{ 
                             border: selectedComponent === component.id ? '1px dashed #3b82f6' : 'none',
-                            backgroundColor: selectedComponent === component.id ? '#f0f9ff' : 'transparent'
+                            backgroundColor: selectedComponent === component.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent'
                           }} />
                         ) : (
                           <div dangerouslySetInnerHTML={{ __html: component.content }} />
@@ -723,9 +733,9 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
         </div>
 
         {/* Enhanced Right sidebar - Properties */}
-        <div className="w-80 bg-white border-l flex flex-col shadow-sm">
-          <div className="p-3 border-b">
-            <h3 className="font-medium">Propriedades</h3>
+        <div className="w-80 bg-gray-900 border-l border-gray-700 flex flex-col">
+          <div className="p-3 border-b border-gray-700">
+            <h3 className="font-medium text-gray-100">Propriedades</h3>
           </div>
           <div className="flex-1 overflow-auto p-3">
             {selectedComponent ? (
@@ -735,456 +745,39 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
                   if (!component) return null;
                   
                   return (
-                    <div className="space-y-4">
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <label className="text-sm font-medium text-gray-700">Tipo de Componente</label>
-                        <p className="text-sm text-gray-600 mt-1">
+                    <div className="space-y-6">
+                      <div className="p-3 bg-gray-800 rounded-lg">
+                        <label className="text-sm font-medium text-gray-300">Tipo de Componente</label>
+                        <p className="text-sm text-blue-400 mt-1">
                           {COMPONENT_TYPES[component.type as keyof typeof COMPONENT_TYPES]?.label}
                         </p>
                       </div>
                       
+                      {/* Combined Style Sections */}
                       <div className="space-y-3">
-                        <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Layout</h4>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Padding</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.padding || ''}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, padding: e.target.value }
-                              })}
-                              placeholder="16px"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Margin</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.margin || ''}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, margin: e.target.value }
-                              })}
-                              placeholder="16px"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Border Radius</label>
-                          <input
-                            type="text"
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.borderRadius || ''}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, borderRadius: e.target.value }
-                            })}
-                            placeholder="8px"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Aparência</h4>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Cor de Fundo</label>
-                            <div className="flex gap-2 mt-1">
-                              <input
-                                type="color"
-                                className="w-8 h-8 border rounded cursor-pointer"
-                                value={component.styles.backgroundColor || '#ffffff'}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, backgroundColor: e.target.value }
-                                })}
-                              />
-                              <input
-                                type="text"
-                                className="flex-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.backgroundColor || ''}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, backgroundColor: e.target.value }
-                                })}
-                                placeholder="#ffffff"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Cor do Texto</label>
-                            <div className="flex gap-2 mt-1">
-                              <input
-                                type="color"
-                                className="w-8 h-8 border rounded cursor-pointer"
-                                value={component.styles.color || '#000000'}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, color: e.target.value }
-                                })}
-                              />
-                              <input
-                                type="text"
-                                className="flex-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.color || ''}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, color: e.target.value }
-                                })}
-                                placeholder="#000000"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Border</label>
-                          <input
-                            type="text"
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.border || ''}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, border: e.target.value }
-                            })}
-                            placeholder="1px solid #e2e8f0"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Box Shadow</label>
-                          <select
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.boxShadow || 'none'}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, boxShadow: e.target.value }
-                            })}
-                          >
-                            <option value="none">Nenhuma</option>
-                            <option value="0 1px 3px rgba(0,0,0,0.1)">Pequena</option>
-                            <option value="0 4px 6px rgba(0,0,0,0.1)">Média</option>
-                            <option value="0 10px 15px rgba(0,0,0,0.1)">Grande</option>
-                            <option value="0 20px 25px rgba(0,0,0,0.15)">Extra Grande</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {(component.type === 'text' || component.type === 'heading' || component.type === 'button') && (
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Tipografia</h4>
+                         <h4 className="font-medium text-sm text-gray-300 border-b border-gray-700 pb-2">Estilos</h4>
                           
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs font-medium text-gray-600">Tamanho da Fonte</label>
-                              <input
-                                type="text"
-                                className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.fontSize || ''}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, fontSize: e.target.value }
-                                })}
-                                placeholder="16px"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-600">Peso da Fonte</label>
-                              <select
-                                className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.fontWeight || 'normal'}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, fontWeight: e.target.value }
-                                })}
-                              >
-                                <option value="normal">Normal</option>
-                                <option value="bold">Negrito</option>
-                                <option value="lighter">Mais Leve</option>
-                                <option value="bolder">Mais Pesado</option>
-                                <option value="100">100</option>
-                                <option value="200">200</option>
-                                <option value="300">300</option>
-                                <option value="400">400</option>
-                                <option value="500">500</option>
-                                <option value="600">600</option>
-                                <option value="700">700</option>
-                                <option value="800">800</option>
-                                <option value="900">900</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Alinhamento</label>
-                            <select
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.textAlign || 'left'}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, textAlign: e.target.value }
-                              })}
-                            >
-                              <option value="left">Esquerda</option>
-                              <option value="center">Centro</option>
-                              <option value="right">Direita</option>
-                              <option value="justify">Justificado</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Altura da Linha</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.lineHeight || ''}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, lineHeight: e.target.value }
-                              })}
-                              placeholder="1.6"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Família da Fonte</label>
-                            <select
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.fontFamily || 'inherit'}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, fontFamily: e.target.value }
-                              })}
-                            >
-                              <option value="inherit">Padrão</option>
-                              <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">Sistema</option>
-                              <option value="Georgia, serif">Georgia</option>
-                              <option value="'Times New Roman', serif">Times New Roman</option>
-                              <option value="Arial, sans-serif">Arial</option>
-                              <option value="Helvetica, sans-serif">Helvetica</option>
-                              <option value="'Courier New', monospace">Courier New</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      {component.type === 'image' && (
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Imagem</h4>
-                          
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">URL da Imagem</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.content}
-                              onChange={(e) => updateComponent(component.id, { content: e.target.value })}
-                              placeholder="https://exemplo.com/imagem.jpg"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-xs font-medium text-gray-600">Largura</label>
-                              <input
-                                type="text"
-                                className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.width || ''}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, width: e.target.value }
-                                })}
-                                placeholder="100%"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-600">Altura</label>
-                              <input
-                                type="text"
-                                className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.height || ''}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, height: e.target.value }
-                                })}
-                                placeholder="auto"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Ajuste do Objeto</label>
-                            <select
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.objectFit || 'cover'}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, objectFit: e.target.value }
-                              })}
-                            >
-                              <option value="cover">Cobrir</option>
-                              <option value="contain">Conter</option>
-                              <option value="fill">Preencher</option>
-                              <option value="none">Nenhum</option>
-                              <option value="scale-down">Reduzir</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Posicionamento</h4>
-                        
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Display</label>
-                          <select
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.display || 'block'}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, display: e.target.value }
-                            })}
-                          >
-                            <option value="block">Block</option>
-                            <option value="inline">Inline</option>
-                            <option value="inline-block">Inline Block</option>
-                            <option value="flex">Flex</option>
-                            <option value="grid">Grid</option>
-                            <option value="none">None</option>
-                          </select>
-                        </div>
-
-                        {component.styles.display === 'flex' && (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-medium text-gray-600">Justify Content</label>
-                                <select
-                                  className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                  value={component.styles.justifyContent || 'flex-start'}
-                                  onChange={(e) => updateComponent(component.id, {
-                                    styles: { ...component.styles, justifyContent: e.target.value }
-                                  })}
-                                >
-                                  <option value="flex-start">Start</option>
-                                  <option value="center">Center</option>
-                                  <option value="flex-end">End</option>
-                                  <option value="space-between">Space Between</option>
-                                  <option value="space-around">Space Around</option>
-                                  <option value="space-evenly">Space Evenly</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-gray-600">Align Items</label>
-                                <select
-                                  className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                  value={component.styles.alignItems || 'stretch'}
-                                  onChange={(e) => updateComponent(component.id, {
-                                    styles: { ...component.styles, alignItems: e.target.value }
-                                  })}
-                                >
-                                  <option value="stretch">Stretch</option>
-                                  <option value="flex-start">Start</option>
-                                  <option value="center">Center</option>
-                                  <option value="flex-end">End</option>
-                                  <option value="baseline">Baseline</option>
-                                </select>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-gray-600">Flex Direction</label>
-                              <select
-                                className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                                value={component.styles.flexDirection || 'row'}
-                                onChange={(e) => updateComponent(component.id, {
-                                  styles: { ...component.styles, flexDirection: e.target.value }
-                                })}
-                              >
-                                <option value="row">Row</option>
-                                <option value="column">Column</option>
-                                <option value="row-reverse">Row Reverse</option>
-                                <option value="column-reverse">Column Reverse</option>
-                              </select>
-                            </div>
-                          </>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Largura Mínima</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.minWidth || ''}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, minWidth: e.target.value }
-                              })}
-                              placeholder="0"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-gray-600">Altura Mínima</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                              value={component.styles.minHeight || ''}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, minHeight: e.target.value }
-                              })}
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Efeitos</h4>
-                        
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Opacidade</label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              className="flex-1"
-                              value={component.styles.opacity || '1'}
-                              onChange={(e) => updateComponent(component.id, {
-                                styles: { ...component.styles, opacity: e.target.value }
-                              })}
-                            />
-                            <span className="text-xs text-gray-500 w-8">
-                              {Math.round((parseFloat(component.styles.opacity || '1') * 100))}%
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Transform</label>
-                          <input
-                            type="text"
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.transform || ''}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, transform: e.target.value }
-                            })}
-                            placeholder="rotate(0deg) scale(1)"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-medium text-gray-600">Transição</label>
-                          <select
-                            className="w-full mt-1 px-2 py-1 border rounded text-sm"
-                            value={component.styles.transition || 'none'}
-                            onChange={(e) => updateComponent(component.id, {
-                              styles: { ...component.styles, transition: e.target.value }
-                            })}
-                          >
-                            <option value="none">Nenhuma</option>
-                            <option value="all 0.2s ease">Rápida (0.2s)</option>
-                            <option value="all 0.3s ease">Normal (0.3s)</option>
-                            <option value="all 0.5s ease">Lenta (0.5s)</option>
-                            <option value="all 0.8s ease">Muito Lenta (0.8s)</option>
-                          </select>
-                        </div>
+                          {/* Generic style editor for all properties */}
+                          {Object.entries(component.styles).map(([key, value]) => (
+                               <div key={key}>
+                                   <label className="text-xs font-medium text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1')}</label>
+                                   <input
+                                       type="text"
+                                       className="w-full mt-1 px-2 py-1 border rounded text-sm bg-gray-700 border-gray-600 text-gray-200"
+                                       value={value}
+                                       onChange={(e) => updateComponent(component.id, {
+                                           styles: { ...component.styles, [key]: e.target.value }
+                                       })}
+                                   />
+                               </div>
+                          ))}
                       </div>
                     </div>
                   );
                 })()}
               </div>
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-12 text-gray-500">
                 <Settings className="h-12 w-12 mx-auto mb-4 opacity-30" />
                 <p className="text-sm">Selecione um componente para editar suas propriedades</p>
                 <p className="text-xs mt-1 opacity-75">Clique em qualquer elemento na tela para começar</p>
@@ -1196,23 +789,23 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
       {/* Content Editor Modal */}
       {showContentEditor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[600px] max-w-full max-h-[80vh] flex flex-col">
-            <h3 className="text-lg font-semibold mb-4">Editar Conteúdo</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-[600px] max-w-full max-h-[80vh] flex flex-col border border-gray-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-100">Editar Conteúdo</h3>
             <div className="flex-1 min-h-0">
               <textarea
-                className="w-full h-48 p-3 border rounded-lg resize-none font-mono text-sm"
+                className="w-full h-full p-3 border rounded-lg resize-none font-mono text-sm bg-gray-900 border-gray-600 text-gray-200 focus:ring-blue-500 focus:border-blue-500"
                 value={editingContent}
                 onChange={(e) => setEditingContent(e.target.value)}
                 placeholder="Digite o conteúdo... (HTML é suportado)"
               />
             </div>
             <div className="flex gap-2 mt-4">
-              <Button onClick={saveContentEdit}>
+              <Button onClick={saveContentEdit} className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Save className="h-4 w-4 mr-2" />
                 Salvar
               </Button>
-              <Button variant="outline" onClick={() => setShowContentEditor(false)}>
+              <Button variant="outline" onClick={() => setShowContentEditor(false)} className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white">
                 Cancelar
               </Button>
             </div>
@@ -1222,28 +815,29 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
       {/* Code View Modal */}
       {showCode && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[800px] max-w-full max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-[800px] max-w-full max-h-[80vh] flex flex-col border border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Código HTML Gerado</h3>
+              <h3 className="text-lg font-semibold text-gray-100">Código HTML Gerado</h3>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   navigator.clipboard.writeText(generateCode());
                 }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
               >
                 <Copy className="h-4 w-4 mr-2" />
                 Copiar
               </Button>
             </div>
             <div className="flex-1 min-h-0">
-              <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-auto h-full border">
-                <code>{generateCode()}</code>
+              <pre className="bg-gray-900 p-4 rounded-lg text-sm overflow-auto h-full border border-gray-700">
+                <code className="text-yellow-300">{generateCode()}</code>
               </pre>
             </div>
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowCode(false)}>
+              <Button variant="outline" onClick={() => setShowCode(false)} className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white">
                 Fechar
               </Button>
             </div>
