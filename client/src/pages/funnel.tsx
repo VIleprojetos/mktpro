@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from '@/lib/api';
 import {
     DollarSign,
     Target,
@@ -273,27 +274,38 @@ export default function LaunchSimulatorPage() {
     const handleGeminiAnalysis = async () => {
         setIsAnalyzing(true);
         setInsight("A IA está a analisar o seu cenário... Este processo pode demorar alguns segundos.");
-        const prompt = `Aja como um especialista em marketing digital e lançamentos de infoprodutos. Analise o seguinte cenário de lançamento e forneça um insight estratégico em português (Portugal). **Dados do Cenário:** - Investimento em Tráfego: ${formatCurrency(inputs.investimentoTráfego)} - Custo por Lead (CPL) Estimado: ${formatCurrency(inputs.cplEstimado)} - Lista de E-mails Existente: ${inputs.listaEmailsExistente.toLocaleString('pt-BR')} leads - Taxa de Participação nos CPLs: ${inputs.taxaParticipacaoCPL}% - Taxa de Cliques para a Página de Vendas: ${inputs.taxaCliquesPaginaVendas}% - Preço do Produto Principal: ${formatCurrency(inputs.precoProdutoPrincipal)} - Taxa de Conversão da Página de Vendas: ${inputs.taxaConversaoPaginaVendas}% - Order Bump: ${inputs.habilitarOrderBump ? `Sim (${formatCurrency(inputs.precoOrderBump)} com ${inputs.taxaAdesaoOrderBump}% de adesão)` : 'Não'} - Upsell: ${inputs.habilitarUpsell ? `Sim (${formatCurrency(inputs.precoUpsell)} com ${inputs.taxaAdesaoUpsell}% de adesão)` : 'Não'} **Resultados Calculados:** - Faturação Bruta: ${formatCurrency(calculations.faturamentoBruto)} - Lucro Líquido: ${formatCurrency(calculations.lucroLiquido)} - ROAS: ${calculations.roas.toFixed(2)}x - Custo por Aquisição (CAC): ${formatCurrency(calculations.cac)} - Ticket Médio: ${formatCurrency(calculations.ticketMedio)} **Sua Tarefa:** 1. **Diagnóstico Rápido:** Identifique o principal ponto de estrangulamento ou a maior alavanca de crescimento neste funil. 2. **Recomendações Acionáveis:** Forneça 2 a 3 sugestões claras, específicas e práticas para melhorar os resultados. Explique o "porquê" de cada sugestão. 3. **Impacto Potencial:** Descreva brevemente o impacto esperado se as suas sugestões forem implementadas. Seja direto, estratégico e use uma linguagem que um gestor de marketing entenderia facilmente. Formate a resposta de forma clara, usando listas ou parágrafos curtos.`;
         try {
-            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-            const result = await response.json();
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) { setInsight(result.candidates[0].content.parts[0].text); } 
-            else { throw new Error("Resposta da IA inválida ou vazia."); }
+            const res = await apiRequest('POST', '/api/analyze-scenario', { inputs, calculations });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || 'Falha ao comunicar com a IA.');
+            }
+            const data = await res.json();
+            setInsight(data.analysis);
         } catch (error) {
-            console.error("Erro ao chamar a Gemini API:", error);
-            setInsight("Ocorreu um erro ao tentar analisar o cenário. Por favor, tente novamente.");
+            console.error("Erro ao chamar a API de análise:", error);
+            setInsight(`Ocorreu um erro ao tentar analisar o cenário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
         } finally {
             setIsAnalyzing(false);
         }
     };
 
-    const handleSaveScenario = () => {
-        console.log("Saving scenario:", { inputs, calculations });
-        toast({ title: "Cenário Salvo!", description: "A sua simulação foi guardada com sucesso.", className: "holographic-card-dark" });
+    const handleSaveScenario = async () => {
+        const scenarioName = prompt("Por favor, dê um nome para este cenário:", "Cenário Realista");
+        if (!scenarioName) {
+            toast({ title: "Cancelado", description: "O cenário não foi salvo.", variant: "destructive" });
+            return;
+        }
+        try {
+            await apiRequest('POST', '/api/scenarios', {
+                name: scenarioName,
+                inputs: inputs,
+                results: calculations
+            });
+            toast({ title: "Cenário Salvo!", description: `"${scenarioName}" foi guardado com sucesso.`, className: "holographic-card-dark" });
+        } catch (error) {
+             toast({ title: "Erro ao Salvar", description: `Não foi possível salvar o cenário: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, variant: "destructive" });
+        }
     };
 
     const handleExportPdf = () => {
