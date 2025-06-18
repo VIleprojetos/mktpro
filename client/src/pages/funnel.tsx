@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from '../lib/api'; // Corrigido para caminho relativo
+import { apiRequest } from '@/lib/api'; // Corrigido para usar alias
 import {
     DollarSign,
     Target,
@@ -352,6 +352,8 @@ export default function LaunchSimulatorPage() {
                 .funnel-segment { animation: float-segment 8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
                 @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
                 @keyframes float-segment { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.02); opacity: 0.95; } }
+                .holographic-button { background: linear-gradient(45deg, var(--neon-blue), var(--neon-cyan)); border: none; color: #0A0F1F; font-weight: bold; text-shadow: none; box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-blue); }
+                .holographic-button-secondary { background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-cyan); }
             `}</style>
             <div className="min-h-screen holographic-body-container text-gray-200 p-4 sm:p-6 lg:p-8 font-sans" style={{ background: '#0A0F1F' }}>
                 <div className="relative z-10">
