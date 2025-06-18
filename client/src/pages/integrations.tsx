@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,15 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Link as LinkIcon, CheckCircle, AlertCircle, Settings, Zap, BarChart3, Trash2, Loader2, PowerOff } from 'lucide-react';
 import { SiFacebook, SiGoogle, SiLinkedin, SiTiktok, SiWhatsapp } from 'react-icons/si';
-import { api } from '@/lib/api';
+import { apiRequest } from '@/lib/api'; // CORREÇÃO: Importa a função correta
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Tipos de dados
 type IntegrationStatus = 'connected' | 'disconnected' | 'error';
 interface AvailableIntegration {
   id: string;
@@ -38,7 +36,6 @@ type UserIntegration = {
   lastSync?: number | null;
 };
 
-// Definição das integrações disponíveis (estático)
 const AVAILABLE_INTEGRATIONS: AvailableIntegration[] = [
     { id: 'google-ads', name: 'Google Ads', description: 'Gerencie campanhas, palavras-chave e relatórios.', icon: SiGoogle, features: ['Campanhas', 'Palavras-chave', 'Relatórios', 'Conversões'] },
     { id: 'meta-ads', name: 'Meta Business (Facebook/Instagram)', description: 'Integração completa com Facebook Ads e Instagram.', icon: SiFacebook, features: ['Campanhas', 'Conjuntos de anúncios', 'Criativos', 'Pixels'] },
@@ -55,7 +52,6 @@ const credentialsSchema = z.object({
 
 type CredentialsFormData = z.infer<typeof credentialsSchema>;
 
-// Componentes auxiliares de UI
 const getStatusIcon = (status?: IntegrationStatus) => {
     switch (status) {
         case 'connected': return <CheckCircle className="w-5 h-5 text-green-500" />;
@@ -79,22 +75,19 @@ export default function IntegrationsPage() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    // Busca as integrações do usuário no backend
-    const { data: userIntegrations, isLoading: isLoadingIntegrations } = useQuery({
+    const { data: userIntegrations, isLoading: isLoadingIntegrations } = useQuery<UserIntegration[]>({
         queryKey: ['integrations'],
         queryFn: async () => {
-            const res = await api.integrations.$get();
-            if (!res.ok) throw new Error('Falha ao buscar integrações.');
-            return await res.json();
+            const res = await apiRequest('GET', '/integrations');
+            return res.json();
         },
     });
 
-    // Mapeia os dados do backend para um acesso mais fácil
     const integrationsMap = new Map(userIntegrations?.map((i) => [i.id, i]));
     const selectedUserIntegration = integrationsMap.get(selectedId);
     const selectedAvailableIntegration = AVAILABLE_INTEGRATIONS.find(i => i.id === selectedId)!;
 
-    const { register, handleSubmit, control, setValue, formState: { errors } } = useForm<CredentialsFormData>({
+    const { register, handleSubmit, setValue, formState: { errors } } = useForm<CredentialsFormData>({
         resolver: zodResolver(credentialsSchema),
         defaultValues: {
             clientId: '',
@@ -109,76 +102,65 @@ export default function IntegrationsPage() {
         setValue('developerToken', selectedUserIntegration?.developerToken || '');
     }, [selectedId, selectedUserIntegration, setValue]);
     
-    // Mutation para o callback do OAuth
     const callbackMutation = useMutation({
         mutationFn: async ({ code, state }: { code: string; state: string }) => {
-            const res = await api.integrations.callback.$post({ json: { code, state } });
-            if (!res.ok) throw new Error((await res.json()).message);
+            const res = await apiRequest('POST', '/integrations/callback', { code, state });
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: (data: UserIntegration) => {
             queryClient.invalidateQueries({ queryKey: ['integrations'] });
             toast({ title: "Sucesso!", description: `${data.name} conectado.` });
             navigate('/integrations', { replace: true });
         },
-        onError: (error) => {
+        onError: (error: Error) => {
             toast({ title: "Erro na Conexão", description: error.message, variant: 'destructive' });
             navigate('/integrations', { replace: true });
         }
     });
 
-    // Roda ao carregar a página para tratar o redirecionamento do OAuth
     useEffect(() => {
         const code = searchParams.get('code');
         const state = searchParams.get('state');
         if (code && state) {
             callbackMutation.mutate({ code, state });
-            // Limpa os parâmetros da URL
             setSearchParams({}, { replace: true });
         }
     }, [searchParams, callbackMutation, setSearchParams]);
 
-    // Mutation para salvar credenciais
     const saveCredentialsMutation = useMutation({
         mutationFn: async (data: CredentialsFormData) => {
-            const res = await api.integrations['save-credentials'].$post({
-                json: { ...data, id: selectedId, name: selectedAvailableIntegration.name }
-            });
-            if (!res.ok) throw new Error('Falha ao salvar credenciais.');
+            const payload = { ...data, id: selectedId, name: selectedAvailableIntegration.name };
+            const res = await apiRequest('POST', '/integrations/save-credentials', payload);
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['integrations'] });
             toast({ title: "Sucesso!", description: "Credenciais salvas com sucesso." });
         },
-        onError: () => toast({ title: "Erro", description: "Não foi possível salvar as credenciais.", variant: 'destructive' })
+        onError: (error: Error) => toast({ title: "Erro", description: error.message, variant: 'destructive' })
     });
 
-    // Mutation para obter a URL de autorização e redirecionar
     const connectMutation = useMutation({
         mutationFn: async (integrationId: string) => {
-            const res = await api.integrations.connect[":id"].$get({ param: { id: integrationId } });
-            if (!res.ok) throw new Error((await res.json()).message);
+            const res = await apiRequest('GET', `/integrations/connect/${integrationId}`);
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: (data: { authUrl: string }) => {
             if (data.authUrl) window.location.href = data.authUrl;
         },
-        onError: (error) => toast({ title: "Erro", description: error.message, variant: 'destructive' })
+        onError: (error: Error) => toast({ title: "Erro", description: error.message, variant: 'destructive' })
     });
 
-    // Mutation para desconectar
     const disconnectMutation = useMutation({
         mutationFn: async (integrationId: string) => {
-            const res = await api.integrations.disconnect[":id"].$post({ param: { id: integrationId }});
-            if (!res.ok) throw new Error('Falha ao desconectar.');
+            const res = await apiRequest('POST', `/integrations/disconnect/${integrationId}`);
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: () => {
              queryClient.invalidateQueries({ queryKey: ['integrations'] });
              toast({ title: "Desconectado", description: `A integração foi removida.` });
         },
-        onError: () => toast({ title: "Erro", description: "Não foi possível desconectar a integração.", variant: 'destructive' })
+        onError: (error: Error) => toast({ title: "Erro", description: error.message, variant: 'destructive' })
     });
     
     const onSubmitCredentials = (data: CredentialsFormData) => {
