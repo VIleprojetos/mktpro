@@ -14,7 +14,6 @@ import { Calendar as CalendarIcon, Download } from "lucide-react";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 
-// Tipos para os dados do formulário e do gráfico
 type FunnelData = {
   name: string;
   value: number;
@@ -36,7 +35,8 @@ const initialInputs: FunnelInputs = {
   ticketMedio: '500',
 };
 
-export function FunnelPage() {
+// CORREÇÃO: A função agora é exportada como 'default' para ser compatível com App.tsx
+export default function Funnel() {
   const [inputs, setInputs] = useState<FunnelInputs>(initialInputs);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +97,7 @@ export function FunnelPage() {
     try {
       const response = await apiRequest(
         'POST',
-        '/analyze-scenario', // CORREÇÃO: Endpoint corrigido de /scenarios para /analyze-scenario
+        '/analyze-scenario',
         { inputs, calculations }
       );
       const result = await response.json();
@@ -197,7 +197,6 @@ export function FunnelPage() {
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Coluna de Inputs */}
         <div className="md:col-span-1 space-y-4">
           <Card>
             <CardHeader>
@@ -223,7 +222,6 @@ export function FunnelPage() {
           </Button>
         </div>
 
-        {/* Coluna do Gráfico e Análise */}
         <div className="md:col-span-2 space-y-8">
           <Card>
             <CardHeader>
@@ -231,7 +229,7 @@ export function FunnelPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={funnelData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={funnelData} layout="vertical" margin={{ top: 20, right: 30, left: 120, bottom: 5 }}>
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="name" width={120} />
                   <Tooltip formatter={(value: number) => value.toLocaleString('pt-BR')} />
