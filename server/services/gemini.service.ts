@@ -465,7 +465,7 @@ class GeminiService {
       - Modal ou expandir para detalhes
       - Animações escalonadas
 
-      **5. 📊 PROVA SOCIAL IRRESISTÍVEL**:
+**5. 📊 PROVA SOCIAL IRRESISTÍVEL**:
       - Testimonials com fotos reais
       - Ratings e reviews destacados
       - Logos de clientes/parceiros
@@ -855,4 +855,7 @@ class GeminiService {
 
 // Export do serviço
 const geminiService = new GeminiService(GEMINI_API_KEY);
+
+// Named export para compatibilidade
+export { geminiService };
 export default geminiService;
