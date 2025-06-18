@@ -1,265 +1,419 @@
-import type { Express, Request, Response, NextFunction, ErrorRequestHandler } from "express";
-import express from "express";
-import { createServer, type Server as HttpServer } from "http";
-import { storage } from "./storage";
-import jwt from 'jsonwebtoken';
-import * as schemaShared from "../shared/schema";
-import { ZodError } from "zod";
-import { OAuth2Client } from 'google-auth-library';
-import { JWT_SECRET, UPLOADS_PATH, APP_BASE_URL, GOOGLE_CLIENT_ID } from './config';
-import { handleMCPConversation } from "./mcp_handler";
-import { googleDriveService } from './services/google-drive.service';
+// server/routes.ts
+import express, { Router, Request, Response, NextFunction } from 'express';
+import { db } from './db';
+import { 
+  campaigns as campaignsSchema, 
+  tasks as tasksSchema,
+  users as usersSchema,
+  landingPages as landingPagesSchema,
+  whatsAppConnections as whatsAppConnectionsSchema
+} from '../shared/schema';
+import { eq, desc } from 'drizzle-orm';
+import { upload } from './multer.config';
 import { geminiService } from './services/gemini.service';
-import { setupMulter } from "./multer.config";
-import { WhatsappConnectionService } from "./services/whatsapp-connection.service";
-import path from "path";
-import fs from "fs";
-import axios from "axios";
+import { funnelGeminiService } from './services/gemini.service.fn'; // Importado o novo serviço
+import { openRouterService } from './services/openrouter.service';
+import path from 'path';
+import fs from 'fs';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { startWhatsAppSession, getSessionStatus, closeWhatsAppSession, getQRCode, sendMessage } from './services/whatsapp-connection.service';
+import { executeFlow } from './flow-executor';
+import { authenticateToken } from './mcp_handler';
+import { googleDriveService } from './services/google-drive.service';
 
-export interface AuthenticatedRequest extends Request {
-  user?: schemaShared.User;
-}
+export const apiRouter: Router = Router();
 
-async function doRegisterRoutes(app: Express): Promise<HttpServer> {
-    const { creativesUpload, lpAssetUpload, mcpAttachmentUpload } = setupMulter(UPLOADS_PATH);
-    const UPLOADS_DIR_NAME = path.basename(UPLOADS_PATH);
-    const LP_ASSETS_DIR = path.join(UPLOADS_PATH, 'lp-assets');
-    const CREATIVES_ASSETS_DIR = path.join(UPLOADS_PATH, 'creatives-assets');
+// Middleware de autenticação (exemplo)
+const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'Token não fornecido' });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    (req as any).user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Token inválido' });
+  }
+};
 
-    app.use(express.json({ limit: "10mb" }));
-    app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Rotas de Usuário
+apiRouter.post('/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Usuário e senha são obrigatórios' });
+  }
+  try {
+    const existingUser = await db.select().from(usersSchema).where(eq(usersSchema.username, username)).limit(1);
+    if (existingUser.length > 0) {
+      return res.status(409).json({ message: 'Usuário já existe' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await db.insert(usersSchema).values({ username, password: hashedPassword, role: 'user' }).returning();
+    res.status(201).json({ id: newUser[0].id, username: newUser[0].username });
+  } catch (error) {
+    console.error('Erro no registro:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
 
-    const publicRouter = express.Router();
-    const apiRouter = express.Router();
-    const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-    
-    const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        if (process.env.FORCE_AUTH_BYPASS === 'true') {
-            const user = await storage.getUser(1);
-            if (!user) {
-                const bypassUser = await storage.createUser({ username: 'admin_bypass', email: 'admin@example.com', password: 'password' });
-                req.user = bypassUser;
-                return next();
-            }
-            req.user = user;
-            return next();
+apiRouter.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Usuário e senha são obrigatórios' });
+  }
+  try {
+    const user = await db.select().from(usersSchema).where(eq(usersSchema.username, username)).limit(1);
+    if (user.length === 0) {
+      return res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+    const isPasswordValid = await bcrypt.compare(password, user[0].password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+    const token = jwt.sign(
+      { userId: user[0].id, username: user[0].username, role: user[0].role },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '1d' }
+    );
+    res.json({ token, user: { id: user[0].id, username: user[0].username, role: user[0].role } });
+  } catch (error) {
+    console.error('Erro no login:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+
+// Rotas de Campanhas
+apiRouter.get('/campaigns', requireAuth, async (req, res) => {
+  try {
+    const campaigns = await db.select().from(campaignsSchema).orderBy(desc(campaignsSchema.createdAt));
+    res.json(campaigns);
+  } catch (error) {
+    res.status(500).json({ message: 'Falha ao buscar campanhas', error });
+  }
+});
+
+apiRouter.post('/campaigns', requireAuth, async (req, res) => {
+  try {
+    const newCampaign = await db.insert(campaignsSchema).values(req.body).returning();
+    res.status(201).json(newCampaign[0]);
+  } catch (error) {
+    res.status(500).json({ message: 'Falha ao criar campanha', error });
+  }
+});
+
+apiRouter.put('/campaigns/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedCampaign = await db.update(campaignsSchema)
+            .set({ ...req.body, updatedAt: new Date() })
+            .where(eq(campaignsSchema.id, parseInt(id)))
+            .returning();
+        if (updatedCampaign.length === 0) {
+            return res.status(404).json({ message: 'Campanha não encontrada' });
         }
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-        if (!token) return res.status(401).json({ error: 'Token não fornecido.' });
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-            const user = await storage.getUser(decoded.userId);
-            if (!user) return res.status(401).json({ error: 'Usuário não encontrado.' });
-            req.user = user;
-            next();
-        } catch (error) {
-            return res.status(403).json({ error: 'Token inválido ou expirado.' });
-        }
-    };
+        res.json(updatedCampaign[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao atualizar campanha', error });
+    }
+});
 
-    const handleZodError: ErrorRequestHandler = (err, req, res, next) => {
-      if (err instanceof ZodError) return res.status(400).json({ error: "Erro de validação.", details: err.errors });
-      next(err);
-    };
-    const handleError: ErrorRequestHandler = (err, req, res, next) => {
-      console.error(err);
-      res.status(err.statusCode || 500).json({ error: err.message || "Erro interno do servidor." });
-    };
-
-    const whatsappServiceInstances = new Map<number, WhatsappConnectionService>();
-    function getWhatsappServiceForUser(userId: number): WhatsappConnectionService {
-        if (!whatsappServiceInstances.has(userId)) {
-            whatsappServiceInstances.set(userId, new WhatsappConnectionService(userId));
+apiRouter.delete('/campaigns/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedCampaign = await db.delete(campaignsSchema)
+            .where(eq(campaignsSchema.id, parseInt(id)))
+            .returning();
+        if (deletedCampaign.length === 0) {
+            return res.status(404).json({ message: 'Campanha não encontrada' });
         }
-        return whatsappServiceInstances.get(userId)!;
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao deletar campanha', error });
+    }
+});
+
+
+// Rotas de Tarefas
+apiRouter.get('/tasks', requireAuth, async (req, res) => {
+    try {
+        const tasks = await db.select().from(tasksSchema).orderBy(desc(tasksSchema.createdAt));
+        res.json(tasks);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao buscar tarefas', error });
+    }
+});
+
+apiRouter.post('/tasks', requireAuth, async (req, res) => {
+    try {
+        const newTask = await db.insert(tasksSchema).values(req.body).returning();
+        res.status(201).json(newTask[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao criar tarefa', error });
+    }
+});
+
+apiRouter.put('/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedTask = await db.update(tasksSchema)
+            .set({ ...req.body, updatedAt: new Date() })
+            .where(eq(tasksSchema.id, parseInt(id)))
+            .returning();
+        if (updatedTask.length === 0) {
+            return res.status(404).json({ message: 'Tarefa não encontrada' });
+        }
+        res.json(updatedTask[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao atualizar tarefa', error });
+    }
+});
+
+apiRouter.delete('/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedTask = await db.delete(tasksSchema)
+            .where(eq(tasksSchema.id, parseInt(id)))
+            .returning();
+        if (deletedTask.length === 0) {
+            return res.status(404).json({ message: 'Tarefa não encontrada' });
+        }
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao deletar tarefa', error });
+    }
+});
+
+// ✅ ROTA CORRIGIDA PARA ANÁLISE DE CENÁRIO
+apiRouter.post('/analyze-scenario', requireAuth, async (req, res) => {
+  try {
+    const { inputs, calculations } = req.body;
+    if (!inputs || !calculations) {
+      return res.status(400).json({ message: 'Dados de inputs e calculations são obrigatórios.' });
+    }
+    const analysis = await funnelGeminiService.analyzeFunnelScenario(inputs, calculations);
+    res.json({ analysis });
+  } catch (error) {
+    console.error('Erro na rota /analyze-scenario:', error);
+    res.status(500).json({ message: 'Falha ao analisar o cenário', error: (error as Error).message });
+  }
+});
+
+
+// Rota para IA generativa
+apiRouter.post('/generate-text', requireAuth, async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) {
+        return res.status(400).json({ message: 'O prompt é obrigatório.' });
+    }
+    try {
+        const generatedText = await geminiService.generateText(prompt);
+        res.json({ text: generatedText });
+    } catch (error) {
+        console.error('Erro ao gerar texto:', error);
+        res.status(500).json({ message: 'Falha ao gerar texto com o serviço Gemini.' });
+    }
+});
+
+// Rotas para Landing Pages
+apiRouter.get('/landingpages', requireAuth, async (req, res) => {
+    try {
+        const pages = await db.select().from(landingPagesSchema).orderBy(desc(landingPagesSchema.createdAt));
+        res.json(pages);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao buscar landing pages', error });
+    }
+});
+
+apiRouter.get('/landingpages/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const page = await db.select().from(landingPagesSchema).where(eq(landingPagesSchema.id, parseInt(id)));
+        if (page.length === 0) {
+            return res.status(404).json({ message: 'Landing page não encontrada' });
+        }
+        res.json(page[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao buscar landing page', error });
+    }
+});
+
+apiRouter.post('/landingpages/generate-advanced', requireAuth, async (req, res) => {
+  const { prompt, options, reference } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ message: 'O prompt é obrigatório' });
+  }
+  try {
+    const htmlContent = await geminiService.createAdvancedLandingPage(prompt, options, reference);
+    res.json({ html: htmlContent });
+  } catch (error: any) {
+    res.status(500).json({ message: `Erro ao gerar landing page: ${error.message}` });
+  }
+});
+
+apiRouter.post('/landingpages', requireAuth, async (req, res) => {
+  const { name, htmlContent, jsonContent, campaignId } = req.body;
+  if (!name || !htmlContent || !jsonContent) {
+    return res.status(400).json({ message: 'Nome, conteúdo HTML e JSON são obrigatórios' });
+  }
+
+  try {
+    const newPage = await db.insert(landingPagesSchema).values({
+      name,
+      htmlContent,
+      jsonContent,
+      campaignId: campaignId ? parseInt(campaignId) : null,
+      userId: (req as any).user.userId,
+    }).returning();
+    res.status(201).json(newPage[0]);
+  } catch (error) {
+    console.error('Erro ao salvar landing page:', error);
+    res.status(500).json({ message: 'Falha ao salvar landing page', error });
+  }
+});
+
+apiRouter.put('/landingpages/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { name, htmlContent, jsonContent } = req.body;
+    if (!name || !htmlContent || !jsonContent) {
+        return res.status(400).json({ message: 'Nome, conteúdo HTML e JSON são obrigatórios' });
     }
 
+    try {
+        const updatedPage = await db.update(landingPagesSchema)
+            .set({ name, htmlContent, jsonContent, updatedAt: new Date() })
+            .where(eq(landingPagesSchema.id, parseInt(id)))
+            .returning();
 
-    // --- ROTAS PÚBLICAS E DE AUTENTICAÇÃO ---
-    publicRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
-    publicRouter.post('/auth/register', async (req, res, next) => {
-      try {
-        const data = schemaShared.insertUserSchema.parse(req.body);
-        if (await storage.getUserByEmail(data.email)) {
-          return res.status(409).json({ error: 'Email já cadastrado.' });
+        if (updatedPage.length === 0) {
+            return res.status(404).json({ message: 'Landing page não encontrada' });
         }
-        const user = await storage.createUser(data);
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.status(201).json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (e) {
-        next(e);
-      }
-    });
-    publicRouter.post('/auth/login', async (req, res, next) => {
-      try {
-        const { email, password } = req.body;
-        if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
-        const user = await storage.getUserByEmail(email);
-        if (!user || !user.password) return res.status(401).json({ error: 'Credenciais inválidas.' });
-        if (!await storage.validatePassword(password, user.password)) return res.status(401).json({ error: 'Credenciais inválidas.' });
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (e) {
-        next(e);
-      }
-    });
-    publicRouter.post('/auth/google', async (req, res, next) => {
-      try {
-        const { credential } = req.body;
-        if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: "Google Client ID não configurado." });
-        const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
-        const payload = ticket.getPayload();
-        if (!payload?.email || !payload.name) return res.status(400).json({ error: 'Payload do Google inválido.' });
-        let user = await storage.getUserByEmail(payload.email) || await storage.createUser({ email: payload.email, username: payload.name });
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (error) {
-        next(new Error("Falha na autenticação com Google."));
-      }
-    });
-    publicRouter.get('/landingpages/slug/:slug', async (req, res, next) => {
-      try {
-        const lp = await storage.getLandingPageBySlug(req.params.slug);
-        if (!lp) return res.status(404).json({ error: 'Página não encontrada' });
-        res.json(lp);
-      } catch(e) {
-        next(e);
-      }
-    });
+
+        res.json(updatedPage[0]);
+    } catch (error) {
+        console.error('Erro ao atualizar landing page:', error);
+        res.status(500).json({ message: 'Falha ao atualizar landing page', error });
+    }
+});
 
 
-    // --- ROTAS PROTEGIDAS ---
-    apiRouter.use(authenticateToken);
-    
-    apiRouter.get('/users', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getAllUsers()); } catch(e) { next(e); }});
-    apiRouter.get('/dashboard', async (req: AuthenticatedRequest, res, next) => { try { const timeRange = req.query.timeRange as string | undefined; res.json(await storage.getDashboardData(req.user!.id, timeRange)); } catch (e) { next(e); }});
-    
-    // Rota de Campanhas
-    apiRouter.get('/campaigns', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getCampaigns(req.user!.id)); } catch (e) { next(e); }});
-    apiRouter.post('/campaigns', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertCampaignSchema.parse(req.body); res.status(201).json(await storage.createCampaign({ ...data, userId: req.user!.id })); } catch (e) { next(e); }});
-    apiRouter.get('/campaigns/:id', async (req: AuthenticatedRequest, res, next) => { try { const campaign = await storage.getCampaignWithDetails(parseInt(req.params.id), req.user!.id); if (!campaign) return res.status(404).json({ error: 'Campanha não encontrada.'}); res.json(campaign); } catch(e) { next(e); }});
-    apiRouter.put('/campaigns/:id', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertCampaignSchema.partial().parse(req.body); const updated = await storage.updateCampaign(parseInt(req.params.id), req.user!.id, data); if (!updated) return res.status(404).json({ error: "Campanha não encontrada."}); res.json(updated); } catch (e) { next(e); } });
-    apiRouter.delete('/campaigns/:id', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteCampaign(parseInt(req.params.id), req.user!.id); res.status(204).send(); } catch (e) { next(e); } });
-    apiRouter.post('/campaigns/from-template/:templateId', async (req: AuthenticatedRequest, res, next) => { try { const templateId = parseInt(req.params.templateId, 10); const data = schemaShared.insertCampaignSchema.parse(req.body); const newCampaign = await storage.createCampaignFromTemplate({ ...data, userId: req.user!.id }, templateId); res.status(201).json(newCampaign); } catch (e) { next(e); } });
-    
-    // Rota de Tarefas
-    apiRouter.post('/campaigns/:campaignId/tasks', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertCampaignTaskSchema.parse(req.body); const task = await storage.createTask(data); res.status(201).json(task); } catch (e) { next(e); } });
-    apiRouter.put('/tasks/:taskId', async (req: AuthenticatedRequest, res, next) => { try { const taskId = parseInt(req.params.taskId, 10); const data = schemaShared.insertCampaignTaskSchema.partial().parse(req.body); const task = await storage.updateTask(taskId, data); res.json(task); } catch(e) { next(e); } });
-    apiRouter.delete('/tasks/:taskId', async (req: AuthenticatedRequest, res, next) => { try { const taskId = parseInt(req.params.taskId, 10); await storage.deleteTask(taskId); res.status(204).send(); } catch (e) { next(e); } });
-
-    // Rota de Criativos
-    apiRouter.get('/creatives', async (req: AuthenticatedRequest, res, next) => { try { const campaignIdQuery = req.query.campaignId as string; const campaignId = campaignIdQuery === 'null' ? null : (campaignIdQuery ? parseInt(campaignIdQuery) : undefined); res.json(await storage.getCreatives(req.user!.id, campaignId)); } catch (e) { next(e); }});
-    apiRouter.post('/creatives', creativesUpload.single('file'), async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertCreativeSchema.parse(req.body); if (req.file) { data.fileUrl = `/${UPLOADS_DIR_NAME}/creatives-assets/${req.file.filename}`; data.thumbnailUrl = null; } const creative = await storage.createCreative({ ...data, userId: req.user!.id }); res.status(201).json(creative); } catch (e) { next(e); } });
-    apiRouter.put('/creatives/:id', creativesUpload.single('file'), async (req: AuthenticatedRequest, res, next) => { try { const id = parseInt(req.params.id); const userId = req.user!.id; const existingCreative = await storage.getCreative(id, userId); if (!existingCreative) return res.status(404).json({ error: "Criativo não encontrado." }); let updateData = schemaShared.insertCreativeSchema.partial().parse(req.body); if (req.file) { updateData.fileUrl = `/${UPLOADS_DIR_NAME}/creatives-assets/${req.file.filename}`; updateData.thumbnailUrl = null; } const updated = await storage.updateCreative(id, updateData, userId); res.json(updated); } catch(e){ next(e); }});
-    apiRouter.delete('/creatives/:id', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteCreative(parseInt(req.params.id), req.user!.id); res.status(204).send(); } catch (e) { next(e); } });
-    apiRouter.get('/creatives/from-drive/:folderId', async (req: AuthenticatedRequest, res, next) => { try { const files = await googleDriveService.listFilesFromFolder(req.params.folderId); res.json(files); } catch (error: any) { next(error); }});
-    apiRouter.post('/creatives/import-from-drive', async (req: AuthenticatedRequest, res, next) => { try { const { campaignId, files } = req.body; if (!campaignId || !Array.isArray(files)) return res.status(400).json({ error: 'ID da campanha e lista de arquivos são obrigatórios.' }); const createdCreatives = []; for (const file of files) { if (!file.webContentLink) continue; const response = await axios({ method: 'get', url: file.webContentLink, responseType: 'stream' }); const newFilename = `gdrive-${Date.now()}${path.extname(file.name || '.jpg')}`; const localFilePath = path.join(CREATIVES_ASSETS_DIR, newFilename); const publicFileUrl = `/${UPLOADS_DIR_NAME}/creatives-assets/${newFilename}`; response.data.pipe(fs.createWriteStream(localFilePath)); await new Promise((resolve, reject) => response.data.on('end', resolve).on('error', reject)); const type = file.mimeType?.startsWith('video') ? 'video' : 'image'; const data = schemaShared.insertCreativeSchema.parse({ campaignId, name: file.name, type, fileUrl: publicFileUrl, thumbnailUrl: file.thumbnailLink, status: 'pending' }); createdCreatives.push(await storage.createCreative({ ...data, userId: req.user!.id })); } res.status(201).json({ message: `${createdCreatives.length} criativo(s) importado(s).`, data: createdCreatives }); } catch (error) { next(error); }});
-    
-    // Rota de Copies
-    apiRouter.get('/copies', async (req: AuthenticatedRequest, res, next) => { try { const { campaignId, phase, purpose, search } = req.query; res.json(await storage.getCopies(req.user!.id, campaignId ? Number(campaignId) : undefined, phase as string, purpose as string, search as string)); } catch (e) { next(e); } });
-    apiRouter.post('/copies', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertCopySchema.parse(req.body); res.status(201).json(await storage.createCopy({ ...data, userId: req.user!.id })); } catch (e) { next(e); } });
-    apiRouter.delete('/copies/:id', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteCopy(parseInt(req.params.id), req.user!.id); res.status(204).send(); } catch (e) { next(e); }});
-
-    // Rota de Landing Pages
-    apiRouter.get('/landingpages', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getLandingPages(req.user!.id)); } catch (e) { next(e); }});
-    
-    apiRouter.post('/landingpages', async (req: AuthenticatedRequest, res, next) => { 
-      try { 
-        const { name } = req.body;
-        const slugBase = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const finalSlug = await storage.generateUniqueSlug(slugBase);
-        const lpData = schemaShared.insertLandingPageSchema.parse({ ...req.body, slug: finalSlug });
-        const newLp = await storage.createLandingPage(lpData, req.user!.id);
-        res.status(201).json(newLp);
-      } catch(e){ 
-        next(e); 
-      }
-    });
-    
-    apiRouter.post('/landingpages/preview-advanced', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { prompt, reference, options } = req.body;
-            if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório.' });
-            const generatedHtml = await geminiService.createAdvancedLandingPage(prompt, options || {}, reference);
-            res.status(200).json({ htmlContent: generatedHtml });
-        } catch (e) {
-            next(e);
+apiRouter.delete('/landingpages/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedPage = await db.delete(landingPagesSchema)
+            .where(eq(landingPagesSchema.id, parseInt(id)))
+            .returning();
+        if (deletedPage.length === 0) {
+            return res.status(404).json({ message: 'Landing page não encontrada' });
         }
-    });
-    
-    apiRouter.get('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { const lp = await storage.getLandingPage(parseInt(req.params.id), req.user!.id); if (!lp) return res.status(404).json({ error: 'Página não encontrada.' }); res.json(lp); } catch (e) { next(e); } });
-    apiRouter.put('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { const lpData = schemaShared.insertLandingPageSchema.partial().parse(req.body); const updated = await storage.updateLandingPage(parseInt(req.params.id), lpData, req.user!.id); if (!updated) return res.status(404).json({ error: "Página não encontrada." }); res.json(updated); } catch(e){ next(e); }});
-    apiRouter.delete('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteLandingPage(parseInt(req.params.id), req.user!.id); res.status(204).send(); } catch(e){ next(e); }});
-    
-    apiRouter.post('/landingpages/generate-variations', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { prompt, count, options, reference } = req.body;
-            if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório para gerar variações.' });
-            const variations = await geminiService.generateVariations(prompt, count || 2, options || {}, reference);
-            res.json({ variations });
-        } catch (e) {
-            next(e);
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: 'Falha ao deletar landing page', error });
+    }
+});
+
+
+// Rota para OpenRouter
+apiRouter.post('/openrouter/chat', requireAuth, async (req, res) => {
+    const { model, messages } = req.body;
+    if (!model || !messages) {
+        return res.status(400).json({ message: 'Modelo e mensagens são obrigatórios.' });
+    }
+    try {
+        const response = await openRouterService.getChatCompletion(model, messages);
+        res.json(response);
+    } catch (error) {
+        console.error('Erro na API da OpenRouter:', error);
+        res.status(500).json({ message: 'Falha ao comunicar com a OpenRouter.' });
+    }
+});
+
+// Rotas de Conexão WhatsApp
+apiRouter.post('/whatsapp/connect', requireAuth, async (req, res) => {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+        return res.status(400).json({ message: 'sessionId é obrigatório' });
+    }
+    try {
+        await startWhatsAppSession(sessionId);
+        res.status(200).json({ message: 'Iniciando conexão com WhatsApp...', sessionId });
+    } catch (error: any) {
+        res.status(500).json({ message: `Erro ao iniciar sessão: ${error.message}` });
+    }
+});
+
+apiRouter.get('/whatsapp/status/:sessionId', requireAuth, async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+        const status = await getSessionStatus(sessionId);
+        res.status(200).json({ status });
+    } catch (error: any) {
+        res.status(500).json({ message: `Erro ao obter status: ${error.message}` });
+    }
+});
+
+apiRouter.get('/whatsapp/qr/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+        const qrCode = await getQRCode(sessionId);
+        if (qrCode) {
+            res.status(200).send(`<img src="${qrCode}" alt="QR Code" />`);
+        } else {
+            res.status(200).send('QR Code não disponível. A sessão pode já estar conectada.');
         }
-    });
-    
-    apiRouter.post('/landingpages/optimize', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { html, goals } = req.body;
-            if (!html) return res.status(400).json({ error: 'O conteúdo HTML é obrigatório para otimização.' });
-            const optimizedHtml = await geminiService.optimizeLandingPage(html, goals);
-            res.json({ htmlContent: optimizedHtml });
-        } catch (e) {
-            next(e);
-        }
-    });
+    } catch (error: any) {
+        res.status(500).json({ message: `Erro ao obter QR code: ${error.message}` });
+    }
+});
 
-    // Rotas de Assets para Landing Pages (GrapesJS)
-    apiRouter.post('/assets/lp-upload', lpAssetUpload.array('files'), (req: AuthenticatedRequest, res, next) => { try { if (!req.files || !Array.isArray(req.files) || req.files.length === 0) return res.status(400).json({ error: "Nenhum arquivo enviado." }); const urls = req.files.map(file => `${APP_BASE_URL}/${UPLOADS_DIR_NAME}/lp-assets/${file.filename}`); res.status(200).json(urls); } catch(e){ next(e); }});
 
-    // Rotas do MCP (ubie)
-    apiRouter.post('/mcp/converse', async (req: AuthenticatedRequest, res, next) => { try { const { message, sessionId, attachmentUrl } = req.body; const payload = await handleMCPConversation(req.user!.id, message, sessionId, attachmentUrl); res.json(payload); } catch(e) { next(e); }});
-    apiRouter.post('/mcp/upload-attachment', mcpAttachmentUpload.single('attachment'), (req: AuthenticatedRequest, res, next) => { try { if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." }); const publicUrl = `${APP_BASE_URL}/${UPLOADS_DIR_NAME}/mcp-attachments/${req.file.filename}`; res.status(200).json({ url: publicUrl }); } catch (e) { next(e); } });
-    
-    // Rotas de Sessões de Chat
-    apiRouter.get('/chat/sessions', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getChatSessions(req.user!.id)); } catch(e){ next(e); }});
-    apiRouter.post('/chat/sessions', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertChatSessionSchema.parse(req.body); res.status(201).json(await storage.createChatSession(req.user!.id, data.title)); } catch(e){ next(e); }});
-    apiRouter.get('/chat/sessions/:sessionId/messages', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getChatMessages(parseInt(req.params.sessionId), req.user!.id)); } catch(e){ next(e); }});
-    apiRouter.put('/chat/sessions/:sessionId/title', async (req: AuthenticatedRequest, res, next) => { try { const updated = await storage.updateChatSessionTitle(parseInt(req.params.sessionId), req.user!.id, req.body.title); res.json(updated); } catch(e){ next(e); }});
-    apiRouter.delete('/chat/sessions/:sessionId', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteChatSession(parseInt(req.params.sessionId), req.user!.id); res.status(204).send(); } catch(e){ next(e); }});
+apiRouter.post('/whatsapp/disconnect', requireAuth, async (req, res) => {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+        return res.status(400).json({ message: 'sessionId é obrigatório' });
+    }
+    try {
+        await closeWhatsAppSession(sessionId);
+        res.status(200).json({ message: 'Sessão do WhatsApp desconectada.' });
+    } catch (error: any) {
+        res.status(500).json({ message: `Erro ao desconectar: ${error.message}` });
+    }
+});
 
-    // Rotas do WhatsApp
-    apiRouter.get('/whatsapp/status', (req: AuthenticatedRequest, res) => res.json(WhatsappConnectionService.getStatus(req.user!.id)));
-    apiRouter.post('/whatsapp/connect', async (req: AuthenticatedRequest, res, next) => { try { getWhatsappServiceForUser(req.user!.id).connectToWhatsApp(); res.status(202).json({ message: "Iniciando conexão..." }); } catch (e) { next(e); } });
-    apiRouter.post('/whatsapp/disconnect', async (req: AuthenticatedRequest, res, next) => { try { await getWhatsappServiceForUser(req.user!.id).disconnectWhatsApp(); res.json({ message: "Desconexão solicitada." }); } catch (e) { next(e); }});
+apiRouter.post('/whatsapp/send', requireAuth, async (req, res) => {
+    const { sessionId, number, message } = req.body;
+    if (!sessionId || !number || !message) {
+        return res.status(400).json({ message: 'sessionId, number e message são obrigatórios' });
+    }
+    try {
+        await sendMessage(sessionId, number, message);
+        res.status(200).json({ success: true, message: 'Mensagem enviada com sucesso.' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: `Erro ao enviar mensagem: ${error.message}` });
+    }
+});
 
-    // Rotas do WhatsApp (Manual) e Fluxos
-    apiRouter.get('/whatsapp/contacts', async (req: AuthenticatedRequest, res, next) => { try { const contacts = await storage.getContacts(req.user!.id); res.json(contacts); } catch (e) { next(e); }});
-    apiRouter.get('/whatsapp/messages', async (req: AuthenticatedRequest, res, next) => { try { const { contactNumber } = req.query; if (typeof contactNumber !== 'string') return res.status(400).json({ error: 'Número de contato é obrigatório.' }); res.json(await storage.getMessages(req.user!.id, contactNumber)); } catch (e) { next(e); }});
-    apiRouter.post('/whatsapp/messages', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertWhatsappMessageSchema.parse({ ...req.body, userId: req.user!.id, direction: 'outgoing' }); const newMessage = await storage.createWhatsappMessage(data); res.status(201).json(newMessage); } catch (e) { next(e); }});
-    
-    // Rotas de Fluxos
-    apiRouter.get('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; const campaignId = req.query.campaignId ? parseInt(String(req.query.campaignId)) : undefined; if(flowId) { const flow = await storage.getFlow(flowId, req.user!.id); if (!flow) return res.status(404).json({error: 'Fluxo não encontrado.'}); return res.json(flow); } res.json(await storage.getFlows(req.user!.id, campaignId)); } catch (e) { next(e); }});
-    apiRouter.post('/flows', async (req: AuthenticatedRequest, res, next) => { 
-        try { 
-            const data = schemaShared.insertFlowSchema.omit({ userId: true }).parse(req.body);
-            const newFlow = await storage.createFlow(data, req.user!.id);
-            res.status(201).json(newFlow);
-        } catch(e) { 
-            next(e); 
-        }
-    });
-    apiRouter.put('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const data = schemaShared.insertFlowSchema.partial().parse(req.body); const updated = await storage.updateFlow(flowId, data, req.user!.id); if (!updated) return res.status(404).json({error: "Fluxo não encontrado."}); res.json(updated); } catch (e) { next(e); }});
-    apiRouter.delete('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const success = await storage.deleteFlow(flowId, req.user!.id); if (!success) return res.status(404).json({error: "Fluxo não encontrado."}); res.status(204).send(); } catch (e) { next(e); }});
+// Rotas de Automação de Fluxo
+apiRouter.post('/flow/execute', authenticateToken, async (req, res) => {
+    try {
+      const { flow } = req.body;
+      const result = await executeFlow(flow);
+      res.json({ success: true, result });
+    } catch (error: any) {
+      console.error("Erro ao executar fluxo:", error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+});
 
-    // --- REGISTRO DOS ROUTERS ---
-    app.use('/api', publicRouter, apiRouter);
-    app.use(handleZodError);
-    app.use(handleError);
-
-    return createServer(app);
-}
-
-export const RouterSetup = {
-    registerRoutes: doRegisterRoutes
-};
+// Rotas Google Drive
+apiRouter.get('/drive/files', authenticateToken, async (req, res) => {
+    try {
+        const files = await googleDriveService.listFiles();
+        res.json(files);
+    } catch (error: any) {
+        res.status(500).json({ message: 'Falha ao listar arquivos do Google Drive', error: error.message });
+    }
+});
