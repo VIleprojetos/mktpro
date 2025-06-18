@@ -6,12 +6,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { router } from './routes';
-import { setupWhatsApp } from './services/whatsapp-connection.service';
-import { startCronJobs } from './services/cron.service';
-import { vite } from './vite';
-// ✅ CORREÇÃO: Caminho da importação ajustado para './config'
-import { UPLOADS_PATH } from './config';
+// ✅ CORREÇÃO: Importações ajustadas para resolver o erro de build do esbuild.
+import { router } from './routes.js';
+import { setupWhatsApp } from './services/whatsapp-connection.service.js';
+import { startCronJobs } from './services/cron.service.js';
+import { vite } from './vite.js';
+import { UPLOADS_PATH } from './config.js';
 
 // Configuração de diretórios para ES Modules
 const __filename = fileURLToPath(import.meta.url);
