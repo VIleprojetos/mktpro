@@ -224,53 +224,63 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
   };
 
   useEffect(() => {
-    // Initialize with initial data or empty state
-    if (initialData?.html) {
-      // Try to parse existing HTML into components (simplified)
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = initialData.html;
-      
-      const parsedComponents: EditorComponent[] = [];
-      let componentIndex = 0;
-      
-      Array.from(tempDiv.children).forEach((element) => {
-        const componentId = `comp_${componentIndex++}`;
-        const styles: Record<string, string> = {};
+    setIsLoading(true);
+
+    // **CORREÇÃO APLICADA AQUI**
+    // Prioriza carregar a partir da estrutura de componentes, se existir.
+    if (initialData?.components && Array.isArray(initialData.components) && initialData.components.length > 0) {
+        // A estrutura de dados dos componentes foi encontrada, use-a diretamente.
+        const loadedComponents = initialData.components as EditorComponent[];
+        setComponents(loadedComponents);
+        // Salva este estado inicial no histórico para permitir o "desfazer"
+        const initialState: HistoryState = {
+            components: JSON.parse(JSON.stringify(loadedComponents)),
+            timestamp: Date.now()
+        };
+        setHistory([initialState]);
+        setHistoryIndex(0);
+    } 
+    // Fallback para a lógica de parsing de HTML, caso a estrutura de componentes não esteja disponível.
+    else if (initialData?.html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = initialData.html;
+        const parsedComponents: EditorComponent[] = [];
+        let componentIndex = 0;
         
-        // Extract inline styles
-        if (element instanceof HTMLElement && element.style) {
-          for (let i = 0; i < element.style.length; i++) {
-            const property = element.style[i];
-            styles[property] = element.style.getPropertyValue(property);
-          }
-        }
-        
-        parsedComponents.push({
-          id: componentId,
-          type: element.tagName.toLowerCase() === 'h1' || element.tagName.toLowerCase() === 'h2' ? 'heading' : 'text',
-          content: element.innerHTML,
-          styles: styles
+        Array.from(tempDiv.children).forEach((element) => {
+            const componentId = `comp_${componentIndex++}`;
+            const styles: Record<string, string> = {};
+            if (element instanceof HTMLElement && element.style) {
+                for (let i = 0; i < element.style.length; i++) {
+                    const property = element.style[i];
+                    styles[property] = element.style.getPropertyValue(property);
+                }
+            }
+            parsedComponents.push({
+                id: componentId,
+                type: element.tagName.toLowerCase() === 'h1' || element.tagName.toLowerCase() === 'h2' ? 'heading' : 'text',
+                content: element.innerHTML,
+                styles: styles
+            });
         });
-      });
-      
-      setComponents(parsedComponents);
-      saveToHistory(parsedComponents);
-    } else {
-      // Start with a default hero section
-      const defaultComponents = [
-        {
-          id: 'hero_1',
-          type: 'hero',
-          content: COMPONENT_TYPES.hero.defaultContent,
-          styles: COMPONENT_TYPES.hero.defaultStyles
-        }
-      ];
-      setComponents(defaultComponents);
-      saveToHistory(defaultComponents);
+        
+        setComponents(parsedComponents);
+        saveToHistory(parsedComponents);
+    } 
+    // Se não houver dados, começa com um componente padrão.
+    else {
+        const defaultComponents = [{
+            id: 'hero_1',
+            type: 'hero',
+            content: COMPONENT_TYPES.hero.defaultContent,
+            styles: COMPONENT_TYPES.hero.defaultStyles
+        }];
+        setComponents(defaultComponents);
+        saveToHistory(defaultComponents);
     }
     
     setIsLoading(false);
-  }, [initialData, saveToHistory]);
+  }, [initialData]); // A dependência de `saveToHistory` foi removida para evitar loops.
 
   const addComponent = (type: keyof typeof COMPONENT_TYPES) => {
     const componentType = COMPONENT_TYPES[type];
@@ -339,27 +349,18 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Generate HTML and CSS from components
       let html = '';
       let css = `
         body { 
           margin: 0; 
           padding: 0; 
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-          background-color: #111827; /* Dark background for saved page */
-          color: #e2e8f0; /* Default text color */
+          background-color: #111827;
+          color: #e2e8f0;
         }
-        * { 
-          box-sizing: border-box; 
-        }
-        .hover-effect:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-        }
-        .button-hover:hover {
-          transform: scale(1.05);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
+        * { box-sizing: border-box; }
+        .hover-effect:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+        .button-hover:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
       `;
       
       components.forEach(component => {
@@ -380,6 +381,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
         }
       });
       
+      // Salva tanto o HTML/CSS quanto a estrutura de componentes.
       const data: Data = {
         html,
         css,
@@ -495,6 +497,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
 
   return (
     <div className="flex flex-col h-screen w-full bg-gray-950 text-gray-200">
+      {/* O restante do JSX do componente (Header, Sidebars, Canvas, Modals) permanece o mesmo do código anterior */}
       {/* Enhanced Header */}
       <header className="flex items-center justify-between p-4 border-b bg-gray-900 border-gray-700">
         <div className="flex items-center gap-4">
@@ -848,7 +851,7 @@ export function PuckEditor({ initialData, onSave, onBack }: PuckEditorProps) {
   );
 }
 
-// Enhanced hook for managing page builder data
+// O hook `usePageBuilder` permanece o mesmo
 export function usePageBuilder() {
   const [data, setData] = useState<Data | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -860,7 +863,6 @@ export function usePageBuilder() {
     try {
       setData(newData);
       console.log('Dados salvos:', newData);
-      // Here you could add API calls to save to a backend
     } catch (err) {
       setError('Erro ao salvar os dados');
       console.error('Erro ao salvar:', err);
