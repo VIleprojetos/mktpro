@@ -780,6 +780,11 @@ class GeminiService {
     }
   }
 
+  public async createAdvancedLandingPage(options: LandingPageOptions): Promise<string> {
+    // Alias para generateLandingPage para compatibilidade
+    return this.generateLandingPage(options);
+  }
+
   public async generateSEOOptimizedContent(industry: string, targetKeywords: string[], contentType: 'meta' | 'headers' | 'body'): Promise<any> {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
