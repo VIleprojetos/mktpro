@@ -1,95 +1,70 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
+import { RouterSetup } from './routes';
+import { UPLOADS_PATH } from './config';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { CronService } from './services/cron.service';
 
-// Configuração de diretórios para ES Modules
+// Correção para __dirname em ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configuração padrão para UPLOADS_PATH
-const UPLOADS_PATH = process.env.UPLOADS_PATH || path.join(__dirname, 'uploads');
+const PORT = process.env.PORT || 8000;
 
-const app = express();
-const server = createServer(app);
-
-// Configuração do Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-  },
-});
-
-// Middlewares Essenciais
-app.use(cors());
-app.use(express.json({ limit: '50mb' })); 
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// Servir arquivos de upload estaticamente
-app.use('/uploads', express.static(UPLOADS_PATH));
-
-// Função para carregar módulos opcionais
-async function loadOptionalModule(modulePath: string, exportName?: string) {
+async function bootstrap() {
   try {
-    const module = await import(modulePath);
-    return exportName ? module[exportName] : module.default || module;
+    const app = express();
+    
+    // CORREÇÃO: O caminho correto para os arquivos do cliente é dentro do próprio diretório 'dist'
+    const clientDistPath = path.join(__dirname, 'public');
+
+    // Middlewares com limites aumentados para payloads grandes
+    app.use(express.json({ 
+      limit: '50mb',  // Aumenta o limite para requisições JSON
+      parameterLimit: 100000,
+      extended: true 
+    }));
+    
+    app.use(express.urlencoded({ 
+      limit: '50mb',  // Aumenta o limite para dados de formulário
+      extended: true,
+      parameterLimit: 100000
+    }));
+    
+    // Middleware adicional para requisições raw (se necessário)
+    app.use(express.raw({ 
+      limit: '50mb',
+      type: ['application/octet-stream', 'image/*', 'video/*', 'audio/*']
+    }));
+    
+    // Servir arquivos de upload estaticamente
+    app.use('/uploads', express.static(UPLOADS_PATH));
+    
+    // Registrar rotas da API
+    const server = await RouterSetup.registerRoutes(app);
+    
+    // Servir arquivos estáticos da aplicação cliente (Vite build)
+    app.use(express.static(clientDistPath));
+    
+    // Rota catch-all para servir o index.html para qualquer outra requisição (SPA behavior)
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      
+      // Inicializar tarefas agendadas
+      const cronService = new CronService();
+      cronService.startTasks();
+      console.log('⏰ Serviço de Cron inicializado.');
+    });
+    
   } catch (error) {
-    console.warn(`⚠️ Módulo opcional não encontrado: ${modulePath}`, error.message);
-    return null;
+    console.error('❌ Falha ao iniciar o servidor:', error);
+    process.exit(1);
   }
 }
 
-// Carregar módulos opcionais
-const router = await loadOptionalModule('./routes.ts', 'router') || express.Router();
-const setupWhatsApp = await loadOptionalModule('./services/whatsapp-connection.service.ts', 'setupWhatsApp') || (() => console.log('WhatsApp service not available'));
-const startCronJobs = await loadOptionalModule('./services/cron.service.ts', 'startCronJobs') || (() => console.log('Cron service not available'));
-const vite = process.env.NODE_ENV !== 'production' ? await loadOptionalModule('./vite.ts', 'vite') : null;
-
-// Rotas da API
-app.use('/api', router);
-
-// Configuração para servir o frontend
-if (process.env.NODE_ENV === 'production') {
-  const clientDistPath = path.join(__dirname, 'public');
-  app.use(express.static(clientDistPath));
-  
-  // Rota catch-all para servir o index.html em produção (SPA)
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
-} else {
-  // Usar o middleware do Vite em desenvolvimento
-  if (vite) {
-    app.use(vite);
-  } else {
-    console.warn('⚠️ Vite middleware não disponível em desenvolvimento');
-  }
-}
-
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, async () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  
-  // Inicializar serviços de background
-  try {
-    if (setupWhatsApp) {
-      await setupWhatsApp(io);
-      console.log('✅ Serviço WhatsApp inicializado.');
-    }
-  } catch (error) {
-    console.error('❌ Erro ao inicializar WhatsApp:', error);
-  }
-  
-  try {
-    if (startCronJobs) {
-      await startCronJobs();
-      console.log('✅ Serviço Cron inicializado.');
-    }
-  } catch (error) {
-    console.error('❌ Erro ao inicializar Cron:', error);
-  }
-});
+bootstrap();
