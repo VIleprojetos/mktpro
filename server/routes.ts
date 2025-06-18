@@ -1,26 +1,41 @@
-import type { Express, Request, Response, NextFunction, ErrorRequestHandler } from "express";
-import express from "express";
-import { createServer, type Server as HttpServer } from "http";
-import { storage } from "./storage";
+// server/routes.ts
+import express, { Router, Request, Response, NextFunction, ErrorRequestHandler } from 'express';
+import { db } from './db';
+import { 
+  campaigns as campaignsSchema, 
+  tasks as tasksSchema,
+  users as usersSchema,
+  landingPages as landingPagesSchema,
+  whatsAppConnections as whatsAppConnectionsSchema
+} from '../shared/schema';
+import { eq, desc } from 'drizzle-orm';
+import { upload, setupMulter } from './multer.config'; // Ajuste na importação
+import { geminiService } from './services/gemini.service';
+import { funnelGeminiService } from './services/gemini.service.fn';
+import { openRouterService } from './services/openrouter.service';
+import path from 'path';
+import fs from 'fs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { startWhatsAppSession, getSessionStatus, closeWhatsAppSession, getQRCode, sendMessage, WhatsappConnectionService } from './services/whatsapp-connection.service';
+import { executeFlow } from './flow-executor';
+import { authenticateToken as mcpAuthenticateToken } from './mcp_handler'; // Renomeado para evitar conflito
+import { googleDriveService } from './services/google-drive.service';
+import { storage } from "./storage";
 import * as schemaShared from "../shared/schema";
 import { ZodError } from "zod";
 import { OAuth2Client } from 'google-auth-library';
 import { JWT_SECRET, UPLOADS_PATH, APP_BASE_URL, GOOGLE_CLIENT_ID } from './config';
 import { handleMCPConversation } from "./mcp_handler";
-import { googleDriveService } from './services/google-drive.service';
-import { geminiService } from './services/gemini.service';
-import { setupMulter } from "./multer.config";
-import { WhatsappConnectionService } from "./services/whatsapp-connection.service";
-import path from "path";
-import fs from "fs";
 import axios from "axios";
+import { createServer, type Server as HttpServer } from "http";
+
 
 export interface AuthenticatedRequest extends Request {
   user?: schemaShared.User;
 }
 
-async function doRegisterRoutes(app: Express): Promise<HttpServer> {
+async function doRegisterRoutes(app: express.Express): Promise<HttpServer> {
     const { creativesUpload, lpAssetUpload, mcpAttachmentUpload } = setupMulter(UPLOADS_PATH);
     const UPLOADS_DIR_NAME = path.basename(UPLOADS_PATH);
     const LP_ASSETS_DIR = path.join(UPLOADS_PATH, 'lp-assets');
@@ -212,6 +227,22 @@ async function doRegisterRoutes(app: Express): Promise<HttpServer> {
         } catch (e) {
             next(e);
         }
+    });
+
+    // ✅ ROTA ADICIONADA PARA CORRIGIR O ERRO 404
+    apiRouter.post('/analyze-scenario', authenticateToken, async (req: Request, res: Response) => {
+      try {
+        const { inputs, calculations } = req.body;
+        if (!inputs || !calculations) {
+          return res.status(400).json({ message: 'Dados de inputs e calculations são obrigatórios.' });
+        }
+        const analysis = await funnelGeminiService.analyzeFunnelScenario(inputs, calculations);
+        res.json({ analysis });
+      } catch (error) {
+        console.error('Erro na rota /analyze-scenario:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        res.status(500).json({ message: 'Falha ao analisar o cenário', error: errorMessage });
+      }
     });
 
     // Rotas de Assets para Landing Pages (GrapesJS)
