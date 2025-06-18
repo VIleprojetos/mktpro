@@ -8,51 +8,17 @@ import {
 } from '../config';
 
 interface LandingPageOptions {
-  style?: 'modern' | 'minimal' | 'bold' | 'elegant' | 'tech' | 'startup' | 'corporate' | 'creative' | 'luxury' | 'gaming';
-  colorScheme?: 'dark' | 'light' | 'gradient' | 'neon' | 'earth' | 'ocean' | 'sunset' | 'aurora' | 'cyber' | 'nature';
-  industry?: string;
-  targetAudience?: string;
-  primaryCTA?: string;
-  secondaryCTA?: string;
-  includeTestimonials?: boolean;
-  includePricing?: boolean;
-  includeStats?: boolean;
-  includeFAQ?: boolean;
-  includeVideo?: boolean;
-  includeNewsletter?: boolean;
-  includeBlog?: boolean;
-  includeFeatures?: boolean;
-  animationsLevel?: 'none' | 'subtle' | 'moderate' | 'dynamic' | 'extreme';
-  layout?: 'single-page' | 'multi-section' | 'storytelling' | 'product-focused' | 'service-focused';
-  brandPersonality?: 'professional' | 'friendly' | 'innovative' | 'trustworthy' | 'disruptive' | 'premium';
-}
-
-interface ColorPalette {
-  primary: string;
-  secondary: string;
-  accent: string;
-  text: string;
-  textSecondary: string;
-  background: string;
-  surface: string;
-  border: string;
-  gradient: string;
-  shadow: string;
-}
-
-interface ConversionAnalysis {
-  score: number;
-  recommendations: string[];
-  strengths: string[];
-  weaknesses: string[];
-}
-
-interface VariationOptions {
-  elementType: 'headline' | 'cta' | 'description' | 'testimonial' | 'pricing' | 'feature';
-  currentText: string;
-  targetAudience?: string;
-  industry?: string;
-  tone?: 'professional' | 'casual' | 'urgent' | 'friendly' | 'authoritative';
+  style ? : 'modern' | 'minimal' | 'bold' | 'elegant' | 'tech' | 'startup';
+  colorScheme ? : 'dark' | 'light' | 'gradient' | 'neon' | 'earth' | 'ocean';
+  industry ? : string;
+  targetAudience ? : string;
+  primaryCTA ? : string;
+  secondaryCTA ? : string;
+  includeTestimonials ? : boolean;
+  includePricing ? : boolean;
+  includeStats ? : boolean;
+  includeFAQ ? : boolean;
+  animationsLevel ? : 'none' | 'subtle' | 'moderate' | 'dynamic';
 }
 
 class GeminiService {
@@ -66,7 +32,8 @@ class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  public async generateText(prompt: string): Promise<string> {
+  // ✅ MÉTODO ADICIONADO PARA CORRIGIR O ERRO DO DASHBOARD
+  public async generateText(prompt: string): Promise < string > {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
     }
@@ -83,244 +50,114 @@ class GeminiService {
     }
   }
 
-  private getAdvancedColorScheme(scheme: string): ColorPalette {
-    const schemes: Record<string, ColorPalette> = {
+  private getColorScheme(scheme: string): any {
+    const schemes = {
       dark: {
         primary: 'bg-slate-900',
         secondary: 'bg-gray-800',
         accent: 'from-blue-600 to-purple-600',
         text: 'text-white',
-        textSecondary: 'text-gray-300',
-        background: 'bg-gray-900',
-        surface: 'bg-gray-800/50',
-        border: 'border-gray-700',
-        gradient: 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900',
-        shadow: 'shadow-2xl shadow-purple-500/20'
+        textSecondary: 'text-gray-300'
       },
       light: {
         primary: 'bg-white',
         secondary: 'bg-gray-50',
         accent: 'from-indigo-500 to-purple-600',
         text: 'text-gray-900',
-        textSecondary: 'text-gray-600',
-        background: 'bg-gray-50',
-        surface: 'bg-white/80',
-        border: 'border-gray-200',
-        gradient: 'bg-gradient-to-br from-white via-blue-50 to-indigo-100',
-        shadow: 'shadow-2xl shadow-blue-500/10'
+        textSecondary: 'text-gray-600'
       },
       gradient: {
         primary: 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900',
         secondary: 'bg-white/10 backdrop-blur-lg',
         accent: 'from-cyan-400 to-pink-400',
         text: 'text-white',
-        textSecondary: 'text-gray-200',
-        background: 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900',
-        surface: 'bg-white/10 backdrop-blur-lg',
-        border: 'border-white/20',
-        gradient: 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900',
-        shadow: 'shadow-2xl shadow-pink-500/30'
+        textSecondary: 'text-gray-200'
       },
       neon: {
         primary: 'bg-black',
         secondary: 'bg-gray-900',
         accent: 'from-green-400 to-cyan-400',
         text: 'text-white',
-        textSecondary: 'text-green-300',
-        background: 'bg-black',
-        surface: 'bg-gray-900/50',
-        border: 'border-green-400',
-        gradient: 'bg-gradient-to-br from-black via-gray-900 to-black',
-        shadow: 'shadow-2xl shadow-green-400/30'
-      },
-      sunset: {
-        primary: 'bg-gradient-to-br from-orange-400 via-red-500 to-pink-500',
-        secondary: 'bg-white/10 backdrop-blur-lg',
-        accent: 'from-yellow-400 to-red-500',
-        text: 'text-white',
-        textSecondary: 'text-orange-100',
-        background: 'bg-gradient-to-br from-orange-400 via-red-500 to-pink-500',
-        surface: 'bg-white/10 backdrop-blur-lg',
-        border: 'border-orange-300',
-        gradient: 'bg-gradient-to-br from-orange-400 via-red-500 to-pink-500',
-        shadow: 'shadow-2xl shadow-orange-500/30'
-      },
-      aurora: {
-        primary: 'bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500',
-        secondary: 'bg-white/10 backdrop-blur-lg',
-        accent: 'from-purple-400 to-blue-400',
-        text: 'text-white',
-        textSecondary: 'text-purple-100',
-        background: 'bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500',
-        surface: 'bg-white/10 backdrop-blur-lg',
-        border: 'border-purple-300',
-        gradient: 'bg-gradient-to-br from-purple-400 via-pink-500 to-blue-500',
-        shadow: 'shadow-2xl shadow-purple-500/30'
-      },
-      cyber: {
-        primary: 'bg-black',
-        secondary: 'bg-gray-900',
-        accent: 'from-cyan-400 to-blue-500',
-        text: 'text-cyan-400',
-        textSecondary: 'text-blue-300',
-        background: 'bg-black',
-        surface: 'bg-gray-900/50',
-        border: 'border-cyan-400',
-        gradient: 'bg-gradient-to-br from-black via-blue-900 to-black',
-        shadow: 'shadow-2xl shadow-cyan-400/30'
-      },
-      ocean: {
-        primary: 'bg-slate-800',
-        secondary: 'bg-blue-900',
-        accent: 'from-blue-400 to-teal-400',
-        text: 'text-white',
-        textSecondary: 'text-blue-200',
-        background: 'bg-slate-800',
-        surface: 'bg-blue-900/50',
-        border: 'border-blue-400',
-        gradient: 'bg-gradient-to-br from-slate-800 via-blue-900 to-teal-800',
-        shadow: 'shadow-2xl shadow-blue-500/30'
+        textSecondary: 'text-green-300'
       },
       earth: {
         primary: 'bg-amber-50',
         secondary: 'bg-orange-100',
         accent: 'from-orange-500 to-red-500',
         text: 'text-amber-900',
-        textSecondary: 'text-orange-700',
-        background: 'bg-amber-50',
-        surface: 'bg-orange-100/50',
-        border: 'border-orange-300',
-        gradient: 'bg-gradient-to-br from-amber-50 via-orange-100 to-red-100',
-        shadow: 'shadow-2xl shadow-orange-500/20'
+        textSecondary: 'text-orange-700'
       },
-      nature: {
-        primary: 'bg-green-50',
-        secondary: 'bg-emerald-100',
-        accent: 'from-green-500 to-emerald-500',
-        text: 'text-green-900',
-        textSecondary: 'text-emerald-700',
-        background: 'bg-green-50',
-        surface: 'bg-emerald-100/50',
-        border: 'border-green-300',
-        gradient: 'bg-gradient-to-br from-green-50 via-emerald-100 to-teal-100',
-        shadow: 'shadow-2xl shadow-green-500/20'
+      ocean: {
+        primary: 'bg-slate-800',
+        secondary: 'bg-blue-900',
+        accent: 'from-blue-400 to-teal-400',
+        text: 'text-white',
+        textSecondary: 'text-blue-200'
       }
     };
-    return schemes[scheme] || schemes.dark;
+    return schemes[scheme as keyof typeof schemes] || schemes.dark;
   }
 
-  private getAdvancedAnimations(level: string): string {
-    const animations = {
-      none: '',
-      subtle: `
-        animation: {
-          'fade-in': 'fadeIn 0.6s ease-out',
-          'slide-up': 'slideUp 0.6s ease-out',
-        },
-        keyframes: {
-          fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-          slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-        }
-      `,
-      moderate: `
-        animation: {
-          'fade-in-up': 'fadeInUp 0.6s ease-out',
-          'fade-in-down': 'fadeInDown 0.6s ease-out',
-          'slide-in-left': 'slideInLeft 0.8s ease-out',
-          'slide-in-right': 'slideInRight 0.8s ease-out',
-          'bounce-gentle': 'bounceGentle 2s infinite',
-          'pulse-slow': 'pulse 3s infinite',
-          'float': 'float 3s ease-in-out infinite',
-        },
-        keyframes: {
-          fadeInUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          slideInRight: { '0%': { opacity: '0', transform: 'translateX(30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          bounceGentle: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
-          float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-10px)' } },
-        }
-      `,
-      dynamic: `
-        animation: {
-          'fade-in-up': 'fadeInUp 0.6s ease-out',
-          'fade-in-down': 'fadeInDown 0.6s ease-out',
-          'slide-in-left': 'slideInLeft 0.8s ease-out',
-          'slide-in-right': 'slideInRight 0.8s ease-out',
-          'bounce-gentle': 'bounceGentle 2s infinite',
-          'pulse-slow': 'pulse 3s infinite',
-          'float': 'float 3s ease-in-out infinite',
-          'glow': 'glow 2s ease-in-out infinite alternate',
-          'rotate-slow': 'rotateSlow 10s linear infinite',
-          'scale-pulse': 'scalePulse 2s ease-in-out infinite',
-          'wiggle': 'wiggle 1s ease-in-out infinite',
-          'gradient-shift': 'gradientShift 3s ease-in-out infinite',
-        },
-        keyframes: {
-          fadeInUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          slideInRight: { '0%': { opacity: '0', transform: 'translateX(30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          bounceGentle: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
-          float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-10px)' } },
-          glow: { '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' }, '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' } },
-          rotateSlow: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
-          scalePulse: { '0%, 100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.05)' } },
-          wiggle: { '0%, 100%': { transform: 'rotate(-3deg)' }, '50%': { transform: 'rotate(3deg)' } },
-          gradientShift: { '0%, 100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
-        }
-      `,
-      extreme: `
-        animation: {
-          'fade-in-up': 'fadeInUp 0.6s ease-out',
-          'fade-in-down': 'fadeInDown 0.6s ease-out',
-          'slide-in-left': 'slideInLeft 0.8s ease-out',
-          'slide-in-right': 'slideInRight 0.8s ease-out',
-          'bounce-gentle': 'bounceGentle 2s infinite',
-          'pulse-slow': 'pulse 3s infinite',
-          'float': 'float 3s ease-in-out infinite',
-          'glow': 'glow 2s ease-in-out infinite alternate',
-          'rotate-slow': 'rotateSlow 10s linear infinite',
-          'scale-pulse': 'scalePulse 2s ease-in-out infinite',
-          'wiggle': 'wiggle 1s ease-in-out infinite',
-          'gradient-shift': 'gradientShift 3s ease-in-out infinite',
-          'matrix-rain': 'matrixRain 2s linear infinite',
-          'neon-flicker': 'neonFlicker 1.5s ease-in-out infinite alternate',
-          'hologram': 'hologram 2s ease-in-out infinite',
-          'glitch': 'glitch 2s infinite',
-          'typewriter': 'typewriter 3s steps(40, end)',
-          'particle-float': 'particleFloat 4s ease-in-out infinite',
-        },
-        keyframes: {
-          fadeInUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-          slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          slideInRight: { '0%': { opacity: '0', transform: 'translateX(30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-          bounceGentle: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
-          float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-10px)' } },
-          glow: { '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' }, '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' } },
-          rotateSlow: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
-          scalePulse: { '0%, 100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.05)' } },
-          wiggle: { '0%, 100%': { transform: 'rotate(-3deg)' }, '50%': { transform: 'rotate(3deg)' } },
-          gradientShift: { '0%, 100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
-          matrixRain: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100vh)' } },
-          neonFlicker: { '0%, 100%': { textShadow: '0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor' }, '50%': { textShadow: '0 0 2px currentColor, 0 0 5px currentColor, 0 0 8px currentColor' } },
-          hologram: { '0%, 100%': { opacity: '1', transform: 'translateY(0)' }, '50%': { opacity: '0.7', transform: 'translateY(-2px)' } },
-          glitch: { '0%, 100%': { transform: 'translate(0)' }, '20%': { transform: 'translate(-2px, 2px)' }, '40%': { transform: 'translate(-2px, -2px)' }, '60%': { transform: 'translate(2px, 2px)' }, '80%': { transform: 'translate(2px, -2px)' } },
-          typewriter: { '0%': { width: '0' }, '100%': { width: '100%' } },
-          particleFloat: { '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' }, '33%': { transform: 'translateY(-30px) rotate(120deg)' }, '66%': { transform: 'translateY(30px) rotate(240deg)' } },
-        }
-      `
-    };
-    return animations[level as keyof typeof animations] || animations.moderate;
-  }
-
-  private getUltraSystemPrompt(options: LandingPageOptions): string {
-    const colors = this.getAdvancedColorScheme(options.colorScheme || 'dark');
-    const animations = this.getAdvancedAnimations(options.animationsLevel || 'moderate');
+  private getAdvancedSystemPrompt(options: LandingPageOptions): string {
+    const colors = this.getColorScheme(options.colorScheme || 'dark');
 
     return `
-      Você é um GENIUS FRONTEND ARCHITECT, CONVERSION WIZARD e VISUAL DESIGNER, especializado em criar landing pages que são verdadeiras OBRAS DE ARTE DIGITAIS que convertem visitantes em clientes apaixonados.
+      Você é um EXPERT FRONTEND ARCHITECT e CONVERSION OPTIMIZATION SPECIALIST, especializado em criar landing pages que convertem visitantes em clientes usando as mais avançadas técnicas de UI/UX, neuromarketing e desenvolvimento web moderno.
+
+      🎯 MISSÃO CRÍTICA: Criar uma landing page que seja visualmente IMPRESSIONANTE, tecnicamente PERFEITA e comercialmente EFICAZ.
+
+      ═══════════════════════════════════════════════════════════════
+      📋 ESPECIFICAÇÕES TÉCNICAS OBRIGATÓRIAS
+      ═══════════════════════════════════════════════════════════════
+
+      ✅ **FORMATO DE SAÍDA ABSOLUTO**:
+      - ZERO texto explicativo, ZERO markdown, ZERO comentários externos
+      - Código deve ser 100% funcional e renderizável imediatamente
+
+      ✅ **ESTRUTURA HTML5 SEMÂNTICA COMPLETA**:
+      \`\`\`html
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>[Título Otimizado para SEO]</title>
+        <meta name="description" content="[Meta description persuasiva de 150-160 caracteres]">
+        <link rel="canonical" href="https://exemplo.com">
+        <meta property="og:title" content="[Open Graph Title]">
+        <meta property="og:description" content="[OG Description]">
+        <meta property="og:image" content="[OG Image URL]">
+        <meta name="twitter:card" content="summary_large_image">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+          tailwind.config = {
+            theme: {
+              extend: {
+                animation: {
+                  'fade-in-up': 'fadeInUp 0.6s ease-out',
+                  'fade-in-down': 'fadeInDown 0.6s ease-out',
+                  'slide-in-left': 'slideInLeft 0.8s ease-out',
+                  'slide-in-right': 'slideInRight 0.8s ease-out',
+                  'pulse-slow': 'pulse 3s infinite',
+                  'bounce-gentle': 'bounceGentle 2s infinite',
+                  'glow': 'glow 2s ease-in-out infinite alternate'
+                },
+                keyframes: {
+                  fadeInUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                  fadeInDown: { '0%': { opacity: '0', transform: 'translateY(-30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                  slideInLeft: { '0%': { opacity: '0', transform: 'translateX(-30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+                  slideInRight: { '0%': { opacity: '0', transform: 'translateX(30px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+                  bounceGentle: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-5px)' } },
+                  glow: { '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' }, '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' } }
+                }
+              }
+            }
+          }
+        </script>
+      </head>
+      \`\`\`
+
+  Você é um GENIUS FRONTEND ARCHITECT, CONVERSION WIZARD e VISUAL DESIGNER, especializado em criar landing pages que são verdadeiras OBRAS DE ARTE DIGITAIS que convertem visitantes em clientes apaixonados.
 
       🎯 MISSÃO SUPREMA: Criar uma landing page que seja:
       - VISUALMENTE HIPNOTIZANTE (que faça as pessoas pararem e admirarem)
@@ -582,106 +419,137 @@ class GeminiService {
       🔥 CRIE A MELHOR LANDING PAGE QUE VOCÊ JÁ FEZ NA SUA VIDA! 🔥
     `;
   }
+    `;
+  }
 
-  public async generateLandingPage(options: LandingPageOptions): Promise<string> {
+  public async createAdvancedLandingPage(
+    prompt: string,
+    options: LandingPageOptions = {},
+    reference ? : string
+  ): Promise < string > {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
     }
 
     const model = this.genAI.getGenerativeModel({
       model: "gemini-1.5-pro-latest",
-      generationConfig: {
-        temperature: 0.9,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        },
-      ],
+      safetySettings: [{
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+      }, ],
     });
 
-    const prompt = this.getUltraSystemPrompt(options);
+    const systemPrompt = this.getAdvancedSystemPrompt(options);
+
+    const userPrompt = `
+      BRIEFING DO CLIENTE:
+      ${prompt}
+      
+      CONFIGURAÇÕES ESPECÍFICAS:
+      - Estilo: ${options.style || 'modern'}
+      - Esquema de Cores: ${options.colorScheme || 'dark'}
+      - Indústria: ${options.industry || 'Não especificada'}
+      - Público-alvo: ${options.targetAudience || 'Público geral'}
+      - CTA Primário: ${options.primaryCTA || 'Começar Agora'}
+      - CTA Secundário: ${options.secondaryCTA || 'Saber Mais'}
+      - Incluir Depoimentos: ${options.includeTestimonials !== false ? 'Sim' : 'Não'}
+      - Incluir Preços: ${options.includePricing ? 'Sim' : 'Não'}
+      - Incluir Estatísticas: ${options.includeStats !== false ? 'Sim' : 'Não'}
+      - Incluir FAQ: ${options.includeFAQ !== false ? 'Sim' : 'Não'}
+      - Nível de Animações: ${options.animationsLevel || 'moderate'}
+      
+      ${reference ? `
+      REFERÊNCIA VISUAL (use como inspiração para estrutura e design, mas o conteúdo deve ser baseado no briefing acima):
+      ${reference}
+      ` : ''}
+
+      EXECUTE AGORA: Crie a landing page mais impressionante e eficaz possível!
+    `;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const result = await model.generateContent([systemPrompt, userPrompt]);
+      const response = result.response;
+      let htmlContent = response.text();
+
+      // Limpa o HTML para garantir que está no formato correto
+      const htmlMatch = htmlContent.match(/<!DOCTYPE html>.*<\/html>/is);
+      if (htmlMatch) {
+        htmlContent = htmlMatch[0];
+      } else {
+        // Remove possíveis markdown blocks se existirem
+        htmlContent = htmlContent
+          .replace(/```html\n?/g, '')
+          .replace(/```/g, '')
+          .trim();
+
+        // Se não começar com DOCTYPE, adiciona estrutura básica
+        if (!htmlContent.startsWith('<!DOCTYPE html>')) {
+          htmlContent = `<!DOCTYPE html>\n${htmlContent}`;
+        }
+      }
+
+      return htmlContent;
     } catch (error: any) {
-      console.error('[GeminiService] Erro ao gerar landing page:', error);
+      console.error('[GeminiService] Erro ao chamar a API do Gemini:', error);
       throw new Error(`Falha ao gerar landing page: ${error.message}`);
     }
   }
 
-  public async analyzeLandingPageConversion(htmlContent: string): Promise<ConversionAnalysis> {
-    if (!this.genAI) {
-      throw new Error('A API Key do Gemini não está configurada no servidor.');
-    }
-
-    const model = this.genAI.getGenerativeModel({
-      model: "gemini-1.5-pro-latest"
-    });
-
-    const analysisPrompt = `
-      Analise esta landing page HTML e forneça uma análise detalhada de conversão:
-
-      ${htmlContent}
-
-      Forneça sua análise no seguinte formato JSON:
-      {
-        "score": [número de 0-100],
-        "recommendations": ["recomendação 1", "recomendação 2", ...],
-        "strengths": ["força 1", "força 2", ...],
-        "weaknesses": ["fraqueza 1", "fraqueza 2", ...]
-      }
-
-      Considere os seguintes aspectos:
-      - Clareza da proposta de valor
-      - Força dos headlines
-      - Qualidade dos CTAs
-      - Prova social e credibilidade
-      - Design e experiência do usuário
-      - Responsividade mobile
-      - Velocidade de carregamento potencial
-      - SEO e estrutura
-      - Psicologia de conversão
-      - Redução de fricção no processo
-    `;
-
-    try {
-      const result = await model.generateContent(analysisPrompt);
-      const response = await result.response;
-      const analysisText = response.text();
-      
-      // Parse JSON response
-      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Não foi possível extrair a análise JSON');
-      }
-    } catch (error: any) {
-      console.error('[GeminiService] Erro ao analisar conversão:', error);
-      throw new Error(`Falha ao analisar conversão: ${error.message}`);
-    }
+  // Método de compatibilidade com a versão anterior
+  public async createLandingPageFromPrompt(
+    prompt: string,
+    reference ? : string
+  ): Promise < string > {
+    return this.createAdvancedLandingPage(prompt, {
+      style: 'modern',
+      colorScheme: 'dark',
+      animationsLevel: 'moderate'
+    }, reference);
   }
 
-  public async optimizeLandingPageCopy(originalCopy: string, targetAudience: string, industry: string): Promise<string> {
+  // Método para gerar múltiplas variações
+  public async generateVariations(
+    prompt: string,
+    count: number = 3,
+    baseOptions: LandingPageOptions = {}
+  ): Promise < string[] > {
+    const variations: string[] = [];
+    const styles: Array < LandingPageOptions['style'] > = ['modern', 'minimal', 'bold', 'elegant', 'tech'];
+    const colorSchemes: Array < LandingPageOptions['colorScheme'] > = ['dark', 'gradient', 'neon', 'ocean'];
+
+    for (let i = 0; i < count; i++) {
+      const options: LandingPageOptions = {
+        ...baseOptions,
+        style: styles[i % styles.length],
+        colorScheme: colorSchemes[i % colorSchemes.length],
+        animationsLevel: i === 0 ? 'dynamic' : i === 1 ? 'moderate' : 'subtle'
+      };
+
+      try {
+        const variation = await this.createAdvancedLandingPage(prompt, options);
+        variations.push(variation);
+      } catch (error) {
+        console.error(`Erro ao gerar variação ${i + 1}:`, error);
+      }
+    }
+
+    return variations;
+  }
+
+  // Método para otimizar landing page existente
+  public async optimizeLandingPage(
+    currentHtml: string,
+    optimizationGoals: string[] = ['conversion', 'performance', 'accessibility']
+  ): Promise < string > {
     if (!this.genAI) {
       throw new Error('A API Key do Gemini não está configurada no servidor.');
     }
@@ -691,181 +559,36 @@ class GeminiService {
     });
 
     const optimizationPrompt = `
-      Você é um COPYWRITER ESPECIALISTA EM CONVERSÃO com 15+ anos de experiência em landing pages que convertem.
-
-      TAREFA: Otimize o copy abaixo para maximizar conversões.
-
-      COPY ORIGINAL:
-      ${originalCopy}
-
-      PÚBLICO-ALVO: ${targetAudience}
-      INDÚSTRIA: ${industry}
-
-      DIRETRIZES DE OTIMIZAÇÃO:
-      1. Use poder de persuasão psicológica (escassez, autoridade, prova social)
-      2. Headlines que param o scroll (números, benefícios, urgência)
-      3. Subheadlines que explicam o "como" e "por que"
-      4. CTAs com verbos de ação e benefício claro
-      5. Microcopy que remove objeções
-      6. Tom de voz apropriado para o público
-      7. Storytelling quando apropriado
-      8. Benefícios > Features
-      9. Linguagem emocional + lógica
-      10. Teste A/B ready (variações)
-
-      RETORNE o copy otimizado mantendo a estrutura original mas melhorando cada elemento para conversão máxima.
+      Você é um especialista em OTIMIZAÇÃO DE CONVERSÃO e PERFORMANCE WEB.
+      
+      Analise a landing page fornecida e aplique as seguintes otimizações:
+      ${optimizationGoals.map(goal => `- ${goal.toUpperCase()}`).join('\n')}
+      
+      LANDING PAGE ATUAL:
+      ${currentHtml}
+      
+      OTIMIZAÇÕES OBRIGATÓRIAS:
+      1. Melhore os CTAs para aumentar conversão
+      2. Otimize a hierarquia visual
+      3. Adicione elementos de urgência e escassez
+      4. Melhore a prova social
+      5. Otimize para mobile
+      6. Adicione microinterações
+      7. Melhore o SEO on-page
+      8. Otimize a velocidade de carregamento
+      
+      Retorne APENAS o HTML otimizado, sem explicações.
     `;
 
     try {
       const result = await model.generateContent(optimizationPrompt);
-      const response = await result.response;
+      const response = result.response;
       return response.text();
     } catch (error: any) {
-      console.error('[GeminiService] Erro ao otimizar copy:', error);
-      throw new Error(`Falha ao otimizar copy: ${error.message}`);
-    }
-  }
-
-  public async generateABTestVariations(originalPage: string, elementToTest: string): Promise<string[]> {
-    if (!this.genAI) {
-      throw new Error('A API Key do Gemini não está configurada no servidor.');
-    }
-
-    const model = this.genAI.getGenerativeModel({
-      model: "gemini-1.5-pro-latest"
-    });
-
-    const variationPrompt = `
-      Você é um especialista em TESTES A/B e OTIMIZAÇÃO DE CONVERSÃO.
-
-      TAREFA: Crie 3 variações diferentes do elemento especificado para teste A/B.
-
-      PÁGINA ORIGINAL:
-      ${originalPage}
-
-      ELEMENTO PARA TESTAR: ${elementToTest}
-
-      CRITÉRIOS PARA VARIAÇÕES:
-      1. Variação A: Abordagem mais direta e objetiva
-      2. Variação B: Abordagem mais emocional e storytelling
-      3. Variação C: Abordagem mais técnica e com dados
-
-      Cada variação deve:
-      - Manter o mesmo contexto e função
-      - Testar hipóteses diferentes de conversão
-      - Ser significativamente diferente das outras
-      - Manter alta qualidade e profissionalismo
-
-      RETORNE as 3 variações em formato JSON:
-      {
-        "variations": [
-          {"name": "Variação A - Direta", "content": "..."},
-          {"name": "Variação B - Emocional", "content": "..."},
-          {"name": "Variação C - Técnica", "content": "..."}
-        ]
-      }
-    `;
-
-    try {
-      const result = await model.generateContent(variationPrompt);
-      const response = await result.response;
-      const responseText = response.text();
-      
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return parsed.variations.map((v: any) => v.content);
-      } else {
-        throw new Error('Não foi possível extrair as variações JSON');
-      }
-    } catch (error: any) {
-      console.error('[GeminiService] Erro ao gerar variações A/B:', error);
-      throw new Error(`Falha ao gerar variações A/B: ${error.message}`);
-    }
-  }
-
-  public async createAdvancedLandingPage(options: LandingPageOptions): Promise<string> {
-    // Alias para generateLandingPage para compatibilidade
-    return this.generateLandingPage(options);
-  }
-
-  public async generateSEOOptimizedContent(industry: string, targetKeywords: string[], contentType: 'meta' | 'headers' | 'body'): Promise<any> {
-    if (!this.genAI) {
-      throw new Error('A API Key do Gemini não está configurada no servidor.');
-    }
-
-    const model = this.genAI.getGenerativeModel({
-      model: "gemini-1.5-pro-latest"
-    });
-
-    const seoPrompt = `
-      Você é um especialista em SEO e CONTENT MARKETING com expertise em ranking no Google.
-
-      TAREFA: Gerar conteúdo SEO-otimizado para landing page.
-
-      INDÚSTRIA: ${industry}
-      PALAVRAS-CHAVE TARGET: ${targetKeywords.join(', ')}
-      TIPO DE CONTEÚDO: ${contentType}
-
-      ${contentType === 'meta' ? `
-        GERE:
-        - Title tag (50-60 caracteres)
-        - Meta description (150-160 caracteres)
-        - Keywords meta tag
-        - Open Graph tags
-        - Schema markup JSON-LD
-      ` : contentType === 'headers' ? `
-        GERE:
-        - H1 principal (1x)
-        - H2 para seções (3-5x)
-        - H3 para subseções (5-8x)
-        - Todos otimizados com keywords naturalmente
-      ` : `
-        GERE:
-        - Parágrafos otimizados para SEO
-        - Densidade de keywords natural (1-2%)
-        - LSI keywords integradas
-        - Call-to-actions com keywords
-        - Alt texts para imagens
-      `}
-
-      DIRETRIZES SEO:
-      1. Keywords naturalmente integradas
-      2. Intent matching (comercial/informacional)
-      3. Featured snippet optimization
-      4. Semantic search optimization
-      5. E-A-T signals (Expertise, Authority, Trust)
-      6. User experience signals
-      7. Core Web Vitals friendly
-      8. Mobile-first indexing ready
-
-      RETORNE em formato JSON estruturado para fácil implementação.
-    `;
-
-    try {
-      const result = await model.generateContent(seoPrompt);
-      const response = await result.response;
-      const responseText = response.text();
-      
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      } else {
-        // Fallback to text response if JSON parsing fails
-        return { content: responseText };
-      }
-    } catch (error: any) {
-      console.error('[GeminiService] Erro ao gerar conteúdo SEO:', error);
-      throw new Error(`Falha ao gerar conteúdo SEO: ${error.message}`);
+      console.error('[GeminiService] Erro ao otimizar landing page:', error);
+      throw new Error(`Falha ao otimizar landing page: ${error.message}`);
     }
   }
 }
 
-// Export do serviço
-const geminiService = new GeminiService(GEMINI_API_KEY);
-
-// Named export para compatibilidade
-export { geminiService };
-export default geminiService;
+export const geminiService = new GeminiService(GEMINI_API_KEY);
