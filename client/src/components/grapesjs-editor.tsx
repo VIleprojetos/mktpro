@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import grapesjs, { Editor } from 'grapesjs';
 import grapesjsPresetWebpage from 'grapesjs-preset-webpage';
 import grapesjsTailwind from 'grapesjs-tailwind';
+import 'src/styles/grapesjs-dark-theme.css';
+
+
 
 interface GrapesJsEditorProps {
   initialData?: { html: string, css: string };
