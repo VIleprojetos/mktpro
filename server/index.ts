@@ -43,10 +43,10 @@ async function loadOptionalModule(modulePath: string, exportName?: string) {
 }
 
 // Carregar módulos opcionais
-const router = await loadOptionalModule('./routes.js', 'router') || express.Router();
-const setupWhatsApp = await loadOptionalModule('./services/whatsapp-connection.service.js', 'setupWhatsApp') || (() => console.log('WhatsApp service not available'));
-const startCronJobs = await loadOptionalModule('./services/cron.service.js', 'startCronJobs') || (() => console.log('Cron service not available'));
-const vite = process.env.NODE_ENV !== 'production' ? await loadOptionalModule('./vite.js', 'vite') : null;
+const router = await loadOptionalModule('./routes.ts', 'router') || express.Router();
+const setupWhatsApp = await loadOptionalModule('./services/whatsapp-connection.service.ts', 'setupWhatsApp') || (() => console.log('WhatsApp service not available'));
+const startCronJobs = await loadOptionalModule('./services/cron.service.ts', 'startCronJobs') || (() => console.log('Cron service not available'));
+const vite = process.env.NODE_ENV !== 'production' ? await loadOptionalModule('./vite.ts', 'vite') : null;
 
 // Rotas da API
 app.use('/api', router);
