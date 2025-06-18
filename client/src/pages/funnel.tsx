@@ -1,5 +1,5 @@
 // client/src/pages/LaunchSimulator.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import fbg from '@/img/fbg.png';
 import {
     DollarSign,
     Target,
@@ -21,7 +25,6 @@ import {
     Save,
     Loader2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 // --- Tipos e Interfaces ---
 interface LaunchInputs {
@@ -46,7 +49,7 @@ interface LaunchInputs {
 interface FunnelStageData {
     label: string;
     value: number;
-    conversionRate: number; // Taxa de conversão da etapa ANTERIOR para esta
+    conversionRate: number;
     faturamento?: number; 
 }
 
@@ -137,20 +140,20 @@ const FinancialCard = ({ title, value, icon: Icon }: { title: string, value: str
     </Card>
 );
 
-// --- Componente do Funil 3D ---
-const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], formatCurrency: (value: number) => string, roas: number }) => {
+const Funnel3D = ({ data, roas }: { data: FunnelStageData[], roas: number }) => {
     const VIEWBOX_WIDTH = 400;
     const VIEWBOX_HEIGHT = 550;
     const MAX_WIDTH = 300;
     const SEGMENT_HEIGHT = 80;
     const ELLIPSE_RY = 20;
     const BASE_HEIGHT = 60;
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     
     const maxVal = data.length > 0 ? data[0].value : 1;
     
     const getWidth = (value: number) => {
         if (maxVal === 0) return 0;
-        return Math.max((value / maxVal) * MAX_WIDTH, 20); // Mínimo para visibilidade
+        return Math.max((value / maxVal) * MAX_WIDTH, 20);
     };
 
     const segments = data.map((stage, index) => {
@@ -169,13 +172,10 @@ const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], for
         return {
             ...stage,
             topY,
-            topWidth,
-            bottomWidth,
             path: `M ${x1} ${y1} L ${x3} ${y2} Q ${VIEWBOX_WIDTH/2} ${y2 + ELLIPSE_RY}, ${x4} ${y2} L ${x2} ${y1} Q ${VIEWBOX_WIDTH/2} ${y1 - ELLIPSE_RY}, ${x1} ${y1} Z`,
             ellipseTopCx: VIEWBOX_WIDTH / 2,
             ellipseTopCy: y1,
             ellipseTopRx: topWidth / 2,
-            ellipseTopRy: ELLIPSE_RY,
         };
     });
     
@@ -185,17 +185,16 @@ const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], for
     return (
         <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} width="100%" height="100%">
             <defs>
-                 <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#4A90E2" /><stop offset="100%" stopColor="#3A7BC8" /></linearGradient>
-                <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#50E3C2" /><stop offset="100%" stopColor="#42CBAA" /></linearGradient>
-                <linearGradient id="grad3" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#F5A623" /><stop offset="100%" stopColor="#D38E1B" /></linearGradient>
-                <linearGradient id="grad4" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#7ED321" /><stop offset="100%" stopColor="#68B61A" /></linearGradient>
-                <linearGradient id="gradBase" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#00f6ff" /><stop offset="100%" stopColor="#00bfff" /></linearGradient>
+                <linearGradient id="gradBlue1" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#00d9ff" /><stop offset="100%" stopColor="#00bfff" /></linearGradient>
+                <linearGradient id="gradBlue2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#00bfff" /><stop offset="100%" stopColor="#008fcc" /></linearGradient>
+                <linearGradient id="gradBlue3" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#008fcc" /><stop offset="100%" stopColor="#006f99" /></linearGradient>
+                <linearGradient id="gradBlue4" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#006f99" /><stop offset="100%" stopColor="#004f66" /></linearGradient>
             </defs>
             <g className="funnel-3d-group">
                 {segments.map((s, i) => (
                     <g key={i} className="funnel-segment" style={{ '--i': i } as React.CSSProperties}>
-                        <path d={s.path} fill={`url(#grad${i + 1})`} fillOpacity="0.5" stroke={`url(#grad${i + 1})`} strokeWidth="1" />
-                        <ellipse cx={s.ellipseTopCx} cy={s.ellipseTopCy} rx={s.ellipseTopRx} ry={s.ellipseTopRy} fill={`url(#grad${i + 1})`} fillOpacity="0.7" className="brightness-150" />
+                        <path d={s.path} fill={`url(#gradBlue${i + 1})`} fillOpacity="0.5" stroke={`url(#gradBlue${i + 1})`} strokeWidth="1" />
+                        <ellipse cx={s.ellipseTopCx} cy={s.ellipseTopCy} rx={s.ellipseTopRx} ry={ELLIPSE_RY} fill={`url(#gradBlue${i + 1})`} fillOpacity="0.7" className="brightness-150" />
                         <text x={VIEWBOX_WIDTH / 2} y={s.topY + SEGMENT_HEIGHT / 2 + 5} textAnchor="middle" fill="white" fontSize="18" fontWeight="bold" className="neon-text-strong">{s.value.toLocaleString('pt-BR')}</text>
                         <text x={30} y={s.topY + SEGMENT_HEIGHT / 2 - 5} textAnchor="start" fill="#E5E7EB" fontSize="13" fontWeight="bold" className="neon-text-subtle">{s.label}</text>
                         {i > 0 && (<text x={VIEWBOX_WIDTH - 30} y={s.topY + SEGMENT_HEIGHT / 2 + 5} textAnchor="end" fill="#E5E7EB" fontSize="14" fontWeight="bold" className="neon-text">{s.conversionRate.toFixed(1)}%</text>)}
@@ -203,8 +202,8 @@ const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], for
                 ))}
                 {lastSegment && data.length > 0 && data[data.length -1].faturamento !== undefined && (
                     <g className="funnel-segment" style={{ '--i': 4 } as React.CSSProperties}>
-                        <path d={`M ${(VIEWBOX_WIDTH - lastSegment.bottomWidth) / 2} ${financialBaseY} L ${(VIEWBOX_WIDTH - lastSegment.bottomWidth * 0.9) / 2} ${financialBaseY + BASE_HEIGHT} Q ${VIEWBOX_WIDTH/2} ${financialBaseY + BASE_HEIGHT + ELLIPSE_RY}, ${(VIEWBOX_WIDTH + lastSegment.bottomWidth*0.9) / 2} ${financialBaseY + BASE_HEIGHT} L ${(VIEWBOX_WIDTH + lastSegment.bottomWidth) / 2} ${financialBaseY} Q ${VIEWBOX_WIDTH/2} ${financialBaseY - ELLIPSE_RY}, ${(VIEWBOX_WIDTH - lastSegment.bottomWidth) / 2} ${financialBaseY} Z`} fill="url(#gradBase)" fillOpacity="0.5" stroke="url(#gradBase)" strokeWidth="1" />
-                        <ellipse cx={VIEWBOX_WIDTH / 2} cy={financialBaseY} rx={lastSegment.bottomWidth/2} ry={ELLIPSE_RY} fill="url(#gradBase)" fillOpacity="0.7" className="brightness-150" />
+                        <path d={`M ${(VIEWBOX_WIDTH - getWidth(data[data.length-1].value)*0.8) / 2} ${financialBaseY} L ${(VIEWBOX_WIDTH - getWidth(data[data.length-1].value) * 0.7) / 2} ${financialBaseY + BASE_HEIGHT} Q ${VIEWBOX_WIDTH/2} ${financialBaseY + BASE_HEIGHT + ELLIPSE_RY}, ${(VIEWBOX_WIDTH + getWidth(data[data.length-1].value)*0.7) / 2} ${financialBaseY + BASE_HEIGHT} L ${(VIEWBOX_WIDTH + getWidth(data[data.length-1].value)*0.8) / 2} ${financialBaseY} Q ${VIEWBOX_WIDTH/2} ${financialBaseY - ELLIPSE_RY}, ${(VIEWBOX_WIDTH - getWidth(data[data.length-1].value)*0.8) / 2} ${financialBaseY} Z`} fill="url(#gradBlue1)" fillOpacity="0.5" stroke="url(#gradBlue1)" strokeWidth="1" />
+                        <ellipse cx={VIEWBOX_WIDTH / 2} cy={financialBaseY} rx={getWidth(data[data.length - 1].value)*0.8/2} ry={ELLIPSE_RY} fill="url(#gradBlue1)" fillOpacity="0.7" className="brightness-150" />
                         <text x={VIEWBOX_WIDTH / 2} y={financialBaseY + 25} textAnchor="middle" fill="white" fontSize="18" fontWeight="bold" className="neon-text-strong">{formatCurrency(data[data.length - 1].faturamento!)}</text>
                         <text x={VIEWBOX_WIDTH / 2} y={financialBaseY + 48} textAnchor="middle" fill="#E5E7EB" fontSize="14" className="neon-text">ROAS: {roas.toFixed(2)}x</text>
                         <text x={30} y={financialBaseY + BASE_HEIGHT / 2} textAnchor="start" fill="#E5E7EB" fontSize="13" fontWeight="bold" className="neon-text-subtle">Faturação</text>
@@ -216,11 +215,12 @@ const Funnel3D = ({ data, formatCurrency, roas }: { data: FunnelStageData[], for
 };
 
 
-// --- Componente Principal ---
 export default function LaunchSimulatorPage() {
     const [inputs, setInputs] = useState<LaunchInputs>(initialState);
     const [insight, setInsight] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const resultsRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
 
     const handleInputChange = (id: keyof LaunchInputs, value: number) => {
         setInputs(prev => ({ ...prev, [id]: value }));
@@ -251,10 +251,7 @@ export default function LaunchSimulatorPage() {
         const cac = vendasAprovadas > 0 ? inputs.investimentoTráfego / vendasAprovadas : 0;
         const ticketMedio = vendasAprovadas > 0 ? faturamentoBruto / vendasAprovadas : 0;
         return {
-            leadsGerados: Math.round(leadsGerados),
-            leadsAquecidos: Math.round(leadsAquecidos),
-            visitantesPaginaVendas: Math.round(visitantesPaginaVendas),
-            vendasRealizadas: Math.round(vendasAprovadas),
+            leadsGerados: Math.round(leadsGerados), leadsAquecidos: Math.round(leadsAquecidos), visitantesPaginaVendas: Math.round(visitantesPaginaVendas), vendasRealizadas: Math.round(vendasAprovadas),
             faturamentoBruto, lucroLiquido, roas, cac, ticketMedio, receitaProdutoPrincipal, receitaOrderBump, receitaUpsell, custoTaxas, custoReembolso,
         };
     }, [inputs]);
@@ -271,56 +268,16 @@ export default function LaunchSimulatorPage() {
     const handleGeminiAnalysis = async () => {
         setIsAnalyzing(true);
         setInsight("A IA está a analisar o seu cenário... Este processo pode demorar alguns segundos.");
-
-        const prompt = `
-            Aja como um especialista em marketing digital e lançamentos de infoprodutos. Analise o seguinte cenário de lançamento e forneça um insight estratégico em português (Portugal).
-
-            **Dados do Cenário:**
-            - Investimento em Tráfego: ${formatCurrency(inputs.investimentoTráfego)}
-            - Custo por Lead (CPL) Estimado: ${formatCurrency(inputs.cplEstimado)}
-            - Lista de E-mails Existente: ${inputs.listaEmailsExistente.toLocaleString('pt-BR')} leads
-            - Taxa de Participação nos CPLs: ${inputs.taxaParticipacaoCPL}%
-            - Taxa de Cliques para a Página de Vendas: ${inputs.taxaCliquesPaginaVendas}%
-            - Preço do Produto Principal: ${formatCurrency(inputs.precoProdutoPrincipal)}
-            - Taxa de Conversão da Página de Vendas: ${inputs.taxaConversaoPaginaVendas}%
-            - Order Bump: ${inputs.habilitarOrderBump ? `Sim (${formatCurrency(inputs.precoOrderBump)} com ${inputs.taxaAdesaoOrderBump}% de adesão)` : 'Não'}
-            - Upsell: ${inputs.habilitarUpsell ? `Sim (${formatCurrency(inputs.precoUpsell)} com ${inputs.taxaAdesaoUpsell}% de adesão)` : 'Não'}
-
-            **Resultados Calculados:**
-            - Faturação Bruta: ${formatCurrency(calculations.faturamentoBruto)}
-            - Lucro Líquido: ${formatCurrency(calculations.lucroLiquido)}
-            - ROAS: ${calculations.roas.toFixed(2)}x
-            - Custo por Aquisição (CAC): ${formatCurrency(calculations.cac)}
-            - Ticket Médio: ${formatCurrency(calculations.ticketMedio)}
-
-            **Sua Tarefa:**
-            1.  **Diagnóstico Rápido:** Identifique o principal ponto de estrangulamento ou a maior alavanca de crescimento neste funil.
-            2.  **Recomendações Acionáveis:** Forneça 2 a 3 sugestões claras, específicas e práticas para melhorar os resultados. Explique o "porquê" de cada sugestão.
-            3.  **Impacto Potencial:** Descreva brevemente o impacto esperado se as suas sugestões forem implementadas.
-
-            Seja direto, estratégico e use uma linguagem que um gestor de marketing entenderia facilmente. Formate a resposta de forma clara, usando listas ou parágrafos curtos.
-        `;
-
+        const prompt = `Aja como um especialista em marketing digital e lançamentos de infoprodutos. Analise o seguinte cenário de lançamento e forneça um insight estratégico em português (Portugal). **Dados do Cenário:** - Investimento em Tráfego: ${formatCurrency(inputs.investimentoTráfego)} - Custo por Lead (CPL) Estimado: ${formatCurrency(inputs.cplEstimado)} - Lista de E-mails Existente: ${inputs.listaEmailsExistente.toLocaleString('pt-BR')} leads - Taxa de Participação nos CPLs: ${inputs.taxaParticipacaoCPL}% - Taxa de Cliques para a Página de Vendas: ${inputs.taxaCliquesPaginaVendas}% - Preço do Produto Principal: ${formatCurrency(inputs.precoProdutoPrincipal)} - Taxa de Conversão da Página de Vendas: ${inputs.taxaConversaoPaginaVendas}% - Order Bump: ${inputs.habilitarOrderBump ? `Sim (${formatCurrency(inputs.precoOrderBump)} com ${inputs.taxaAdesaoOrderBump}% de adesão)` : 'Não'} - Upsell: ${inputs.habilitarUpsell ? `Sim (${formatCurrency(inputs.precoUpsell)} com ${inputs.taxaAdesaoUpsell}% de adesão)` : 'Não'} **Resultados Calculados:** - Faturação Bruta: ${formatCurrency(calculations.faturamentoBruto)} - Lucro Líquido: ${formatCurrency(calculations.lucroLiquido)} - ROAS: ${calculations.roas.toFixed(2)}x - Custo por Aquisição (CAC): ${formatCurrency(calculations.cac)} - Ticket Médio: ${formatCurrency(calculations.ticketMedio)} **Sua Tarefa:** 1. **Diagnóstico Rápido:** Identifique o principal ponto de estrangulamento ou a maior alavanca de crescimento neste funil. 2. **Recomendações Acionáveis:** Forneça 2 a 3 sugestões claras, específicas e práticas para melhorar os resultados. Explique o "porquê" de cada sugestão. 3. **Impacto Potencial:** Descreva brevemente o impacto esperado se as suas sugestões forem implementadas. Seja direto, estratégico e use uma linguagem que um gestor de marketing entenderia facilmente. Formate a resposta de forma clara, usando listas ou parágrafos curtos.`;
         try {
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            const apiKey = ""; 
+            const apiKey = "";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-            
             const result = await response.json();
-
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                setInsight(result.candidates[0].content.parts[0].text);
-            } else {
-                throw new Error("Resposta da IA inválida ou vazia.");
-            }
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) { setInsight(result.candidates[0].content.parts[0].text); } 
+            else { throw new Error("Resposta da IA inválida ou vazia."); }
         } catch (error) {
             console.error("Erro ao chamar a Gemini API:", error);
             setInsight("Ocorreu um erro ao tentar analisar o cenário. Por favor, tente novamente.");
@@ -329,97 +286,56 @@ export default function LaunchSimulatorPage() {
         }
     };
 
+    const handleSaveScenario = () => {
+        console.log("Saving scenario:", { inputs, calculations });
+        toast({ title: "Cenário Salvo!", description: "A sua simulação foi guardada com sucesso.", className: "holographic-card-dark" });
+    };
+
+    const handleExportPdf = () => {
+        const input = resultsRef.current;
+        if (input) {
+            toast({ title: "A gerar PDF...", description: "Por favor, aguarde.", className: "holographic-card-dark" });
+            html2canvas(input, { backgroundColor: '#0A0F1F', useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save("simulacao-lancamento.pdf");
+            });
+        }
+    };
+
     return (
         <>
-            <style>{`
-                :root {
-                    --neon-cyan: #00f6ff;
-                    --neon-blue: #00bfff;
-                    --neon-pink: #f400f9;
-                }
-                .holographic-body {
-                    background-color: #0A0F1F;
-                    background-image:
-                        linear-gradient(var(--neon-blue) 1px, transparent 1px),
-                        linear-gradient(90deg, var(--neon-blue) 1px, transparent 1px);
-                    background-size: 50px 50px;
-                    animation: pan-grid 30s linear infinite;
-                    overflow: hidden;
-                    position: relative;
-                }
-                .holographic-body::before {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: radial-gradient(ellipse at center, rgba(10, 15, 31, 0) 0%, #0A0F1F 80%);
-                    pointer-events: none;
-                }
-                @keyframes pan-grid {
-                    0% { background-position: 0 0; }
-                    100% { background-position: 50px 50px; }
-                }
-                .holographic-card {
-                    background: rgba(18, 28, 58, 0.5);
-                    border: 1px solid rgba(0, 191, 255, 0.3);
-                    backdrop-filter: blur(8px);
-                    box-shadow: 0 0 15px rgba(0, 191, 255, 0.1), 0 0 30px rgba(0, 191, 255, 0.1);
-                    transition: all 0.3s ease;
-                }
-                .holographic-card:hover {
-                    border-color: rgba(0, 191, 255, 0.7);
-                    box-shadow: 0 0 20px rgba(0, 191, 255, 0.3), 0 0 40px rgba(0, 191, 255, 0.2);
-                }
-                .holographic-card-dark {
-                    background: rgba(10, 15, 31, 0.8);
-                    border: 1px solid rgba(0, 191, 255, 0.5);
-                }
+            <style>{`:root { --neon-cyan: #00f6ff; --neon-blue: #00bfff; }
+                .holographic-body-container { background-image: url(${fbg}); background-size: cover; background-position: center; background-attachment: fixed; }
+                .holographic-card { background: rgba(18, 28, 58, 0.5); border: 1px solid rgba(0, 191, 255, 0.3); backdrop-filter: blur(8px); box-shadow: 0 0 15px rgba(0, 191, 255, 0.1), 0 0 30px rgba(0, 191, 255, 0.1); transition: all 0.3s ease; }
+                .holographic-card:hover { border-color: rgba(0, 191, 255, 0.7); box-shadow: 0 0 20px rgba(0, 191, 255, 0.3), 0 0 40px rgba(0, 191, 255, 0.2); }
+                .holographic-card-dark { background: rgba(10, 15, 31, 0.8); border: 1px solid rgba(0, 191, 255, 0.5); color: #fff; }
                 .neon-text { text-shadow: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan); }
                 .neon-text-strong { text-shadow: 0 0 5px #fff, 0 0 10px var(--neon-cyan), 0 0 15px var(--neon-cyan); }
                 .neon-text-subtle { text-shadow: 0 0 8px var(--neon-blue); }
                 .neon-icon { filter: drop-shadow(0 0 4px var(--neon-cyan)); }
-                
-                .holographic-input, .holographic-input-addon {
-                    background: rgba(18, 28, 58, 0.7);
-                    border: 1px solid rgba(0, 191, 255, 0.4);
-                    color: white;
-                    transition: all 0.3s ease;
-                }
+                .holographic-input, .holographic-input-addon { background: rgba(18, 28, 58, 0.7); border: 1px solid rgba(0, 191, 255, 0.4); color: white; transition: all 0.3s ease; }
                 .holographic-input-addon { border-right: none; }
                 .holographic-input { border-left: none; }
-                .holographic-input:focus {
-                    background: rgba(28, 40, 78, 0.8);
-                    border-color: var(--neon-cyan);
-                    box-shadow: 0 0 15px rgba(0, 246, 255, 0.3);
-                }
+                .holographic-input:focus { background: rgba(28, 40, 78, 0.8); border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0, 246, 255, 0.3); }
                 .funnel-3d-group { animation: float 6s ease-in-out infinite; }
                 .funnel-segment { animation: float-segment 8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
-                @keyframes float {
-                    0%, 100% { transform: translateY(0px); }
-                    50% { transform: translateY(-10px); }
-                }
-                @keyframes float-segment {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.02); opacity: 0.95; }
-                }
+                @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+                @keyframes float-segment { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.02); opacity: 0.95; } }
             `}</style>
-            <div className="min-h-screen holographic-body text-gray-200 p-4 sm:p-6 lg:p-8 font-sans">
+            <div className="min-h-screen holographic-body-container text-gray-200 p-4 sm:p-6 lg:p-8 font-sans">
                 <div className="relative z-10">
                     <div className="text-center mb-12">
                         <h1 className="text-4xl lg:text-5xl font-bold text-white neon-text-strong">Simulador de Lançamento Digital</h1>
                         <p className="text-lg text-blue-300 mt-2 neon-text-subtle">Planeje, simule e otimize os seus resultados com uma estética futurista.</p>
                     </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Coluna 1: Entradas */}
                         <div className="lg:col-span-3">
                             <Card className="holographic-card">
-                                <CardHeader>
-                                    <CardTitle className="text-xl text-white neon-text-strong">Painel de Controlo</CardTitle>
-                                    <CardDescription className="text-blue-300 neon-text-subtle">Insira as variáveis do seu lançamento.</CardDescription>
-                                </CardHeader>
+                                <CardHeader><CardTitle className="text-xl text-white neon-text-strong">Painel de Controlo</CardTitle><CardDescription className="text-blue-300 neon-text-subtle">Insira as variáveis do seu lançamento.</CardDescription></CardHeader>
                                 <CardContent>
                                     <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full">
                                         <AccordionItem value="item-1"><AccordionTrigger className="text-cyan-300">Investimento e Geração de Leads</AccordionTrigger><AccordionContent className="space-y-4 pt-4"><InputField label="Investimento em Tráfego" id="investimentoTráfego" value={inputs.investimentoTráfego} onChange={handleInputChange} /><InputField label="Custo por Lead (CPL) Estimado" id="cplEstimado" value={inputs.cplEstimado} onChange={handleInputChange} /><InputField label="Tamanho da Lista de E-mails" id="listaEmailsExistente" value={inputs.listaEmailsExistente} onChange={handleInputChange} unit="Leads" /></AccordionContent></AccordionItem>
@@ -430,14 +346,10 @@ export default function LaunchSimulatorPage() {
                                 </CardContent>
                             </Card>
                         </div>
-
-                        {/* Coluna 2: Funil */}
                         <div className="lg:col-span-5 flex flex-col items-center justify-center">
-                           <Funnel3D data={funnelForChart} formatCurrency={formatCurrency} roas={calculations.roas} />
+                           <Funnel3D data={funnelForChart} roas={calculations.roas} />
                         </div>
-
-                        {/* Coluna 3: Saídas */}
-                        <div className="lg:col-span-4 space-y-6">
+                        <div className="lg:col-span-4 space-y-6" ref={resultsRef}>
                             <Card className="holographic-card">
                                 <CardHeader><CardTitle className="text-xl text-white neon-text-strong">Projeções e Análise</CardTitle></CardHeader>
                                 <CardContent className="space-y-6">
@@ -472,25 +384,16 @@ export default function LaunchSimulatorPage() {
                                 <CardHeader><CardTitle className="text-xl text-white neon-text-strong flex items-center gap-2"><Sparkles className="text-cyan-400 neon-icon" />Análise Estratégica com IA</CardTitle></CardHeader>
                                 <CardContent className="space-y-3">
                                      <p className="text-sm text-blue-200 neon-text-subtle">Obtenha recomendações personalizadas para otimizar o seu lançamento.</p>
-                                     <Button
-                                        variant="default"
-                                        className="w-full holographic-button"
-                                        onClick={handleGeminiAnalysis}
-                                        disabled={isAnalyzing}
-                                    >
+                                     <Button variant="default" className="w-full holographic-button" onClick={handleGeminiAnalysis} disabled={isAnalyzing}>
                                         {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                                         {isAnalyzing ? 'A analisar...' : 'Analisar Cenário com IA'}
                                     </Button>
-                                    {insight && (
-                                        <div className="mt-4 p-4 holographic-card-dark rounded-md text-sm text-gray-300 prose prose-invert prose-sm max-w-none">
-                                            <p className="whitespace-pre-wrap font-sans">{insight}</p>
-                                        </div>
-                                    )}
+                                    {insight && (<div className="mt-4 p-4 holographic-card-dark rounded-md text-sm text-gray-300 prose prose-invert prose-sm max-w-none"><p className="whitespace-pre-wrap font-sans">{insight}</p></div>)}
                                 </CardContent>
                             </Card>
                             <div className="flex gap-4">
-                                <Button className="w-full holographic-button-secondary"><Save className="h-4 w-4 mr-2" /> Salvar Cenário</Button>
-                                <Button className="w-full holographic-button-secondary"><FileDown className="h-4 w-4 mr-2" /> Exportar PDF</Button>
+                                <Button className="w-full holographic-button-secondary" onClick={handleSaveScenario}><Save className="h-4 w-4 mr-2" /> Salvar Cenário</Button>
+                                <Button className="w-full holographic-button-secondary" onClick={handleExportPdf}><FileDown className="h-4 w-4 mr-2" /> Exportar PDF</Button>
                             </div>
                         </div>
                     </div>
