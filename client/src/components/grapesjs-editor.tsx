@@ -1,7 +1,6 @@
 // client/src/components/grapesjs-editor.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import grapesjs, { Editor } from 'grapesjs';
-import 'grapesjs/dist/css/grapes.min.css';
 import grapesjsPresetWebpage from 'grapesjs-preset-webpage';
 import grapesjsTailwind from 'grapesjs-tailwind';
 
