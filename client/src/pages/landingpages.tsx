@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { MoreHorizontal, Edit, Bot, Loader2, Link as LinkIcon, Save, ExternalLink, Palette, Zap, Target, Settings, Sparkles, Wand2, Eye, Code, Layers, Rocket, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PuckEditor, Data } from '@/components/PuckEditor'; // Updated import
+import { GrapesJsEditor, Data } from '@/components/GrapesJsEditor'; // [CORREÇÃO] Importado o GrapesJsEditor
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -121,10 +121,16 @@ export default function LandingPages() {
       toast({ title: "Erro ao Gerar Variações", description: error.message, variant: "destructive" });
     },
   });
-
+  
   const saveAndEditMutation = useMutation({
-    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: Data; generationOptions?: LandingPageOptions }) => 
-      apiRequest('POST', '/api/landingpages', data).then(res => res.json()),
+    mutationFn: (data: { name: string; campaignId: number | null; grapesJsData: Data; generationOptions?: LandingPageOptions }) =>
+      apiRequest('POST', '/api/landingpages', {
+        name: data.name,
+        campaignId: data.campaignId,
+        html: data.grapesJsData.html,
+        css: data.grapesJsData.css,
+        generationOptions: data.generationOptions,
+      }).then((res) => res.json()),
     onSuccess: (savedLp: LpType) => {
       toast({ title: "Página Salva com Sucesso! 💾", description: "Abrindo o editor visual..." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
@@ -138,7 +144,7 @@ export default function LandingPages() {
 
   const updateLpMutation = useMutation({
     mutationFn: (data: { id: number, grapesJsData: Data }) => 
-      apiRequest('PUT', `/api/landingpages/${data.id}`, { grapesJsData: data.grapesJsData }),
+      apiRequest('PUT', `/api/landingpages/${data.id}`, { html: data.grapesJsData.html, css: data.grapesJsData.css }),
     onSuccess: () => {
       toast({ title: "Alterações Salvas! ✅", description: "Sua landing page foi atualizada com sucesso." });
       queryClient.invalidateQueries({ queryKey: ['landingPages'] });
@@ -207,7 +213,6 @@ export default function LandingPages() {
     optimizeMutation.mutate({ html: currentHtml, goals: ['conversion', 'performance', 'accessibility'] });
   };
   
-// Continuação da função handleEditClick (estava incompleta)
   const handleEditClick = () => {
     const currentHtml = getCurrentPreview();
     if (!currentHtml) return;
@@ -226,15 +231,8 @@ export default function LandingPages() {
       animationsLevel: formData.animationsLevel,
     };
 
-    // Criar dados compatíveis com o PuckEditor
-    const grapesJsData: Data = {
-      html: currentHtml,
-      css: '', // CSS será extraído do HTML inline ou definido separadamente
-      components: null,
-      styles: null,
-    };
+    const grapesJsData: Data = { html: currentHtml, css: '' };
 
-    // Salvar a página e abrir o editor
     saveAndEditMutation.mutate({
       name: formData.name,
       campaignId: formData.campaignId,
@@ -284,11 +282,11 @@ export default function LandingPages() {
     return <Badge variant={config.color as any}>{config.label}</Badge>;
   };
 
-  // Se estiver no modo editor, mostrar apenas o editor
   if (showEditor && editingLp) {
+    // [CORREÇÃO] Substituído PuckEditor por GrapesJsEditor
     return (
-      <PuckEditor
-        initialData={editingLp.grapesJsData as Data}
+      <GrapesJsEditor
+        initialData={{ html: editingLp.html, css: editingLp.css }}
         onSave={handleSaveFromEditor}
         onBack={handleBackFromEditor}
       />
@@ -320,7 +318,6 @@ export default function LandingPages() {
 
         <TabsContent value="create" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Formulário de Configuração */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -334,7 +331,6 @@ export default function LandingPages() {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onGenerateSubmit)} className="space-y-4">
-                    {/* Informações Básicas */}
                     <div className="space-y-4">
                       <FormField
                         control={form.control}
@@ -420,7 +416,6 @@ export default function LandingPages() {
 
                     <Separator />
 
-                    {/* Configurações de Design */}
                     <div className="space-y-4">
                       <h4 className="font-medium flex items-center gap-2">
                         <Palette className="h-4 w-4" />
@@ -480,41 +475,10 @@ export default function LandingPages() {
                           )}
                         />
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="primaryCTA"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CTA Principal</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Começar Agora" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="secondaryCTA"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>CTA Secundário</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Saber Mais" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
 
                     <Separator />
 
-                    {/* Seções e Conteúdo */}
                     <div className="space-y-4">
                       <h4 className="font-medium flex items-center gap-2">
                         <Layers className="h-4 w-4" />
@@ -524,42 +488,11 @@ export default function LandingPages() {
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
-                          name="industry"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Setor/Indústria</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Ex: SaaS, E-commerce" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="targetAudience"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Público-Alvo</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Ex: Empresários, Desenvolvedores" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <FormField
-                          control={form.control}
                           name="includeTestimonials"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between">
-                              <div>
-                                <FormLabel>Incluir Depoimentos</FormLabel>
-                                <FormDescription>Adicionar seção de testimoniais</FormDescription>
+                            <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                              <div className="space-y-0.5">
+                                <FormLabel>Depoimentos</FormLabel>
                               </div>
                               <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -567,47 +500,13 @@ export default function LandingPages() {
                             </FormItem>
                           )}
                         />
-
                         <FormField
                           control={form.control}
                           name="includePricing"
                           render={({ field }) => (
-                            <FormItem className="flex items-center justify-between">
-                              <div>
-                                <FormLabel>Incluir Preços</FormLabel>
-                                <FormDescription>Adicionar tabela de preços</FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="includeStats"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center justify-between">
-                              <div>
-                                <FormLabel>Incluir Estatísticas</FormLabel>
-                                <FormDescription>Adicionar números e métricas</FormDescription>
-                              </div>
-                              <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="includeFAQ"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center justify-between">
-                              <div>
-                                <FormLabel>Incluir FAQ</FormLabel>
-                                <FormDescription>Adicionar perguntas frequentes</FormDescription>
+                            <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                              <div className="space-y-0.5">
+                                <FormLabel>Preços</FormLabel>
                               </div>
                               <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -616,52 +515,15 @@ export default function LandingPages() {
                           )}
                         />
                       </div>
-
-                      <FormField
-                        control={form.control}
-                        name="animationsLevel"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nível de Animações</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">Sem animações</SelectItem>
-                                <SelectItem value="subtle">Sutis</SelectItem>
-                                <SelectItem value="moderate">Moderadas</SelectItem>
-                                <SelectItem value="dynamic">Dinâmicas</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
 
-                    <Separator />
-
-                    {/* Botões de Ação */}
                     <div className="flex gap-2 pt-4">
                       <Button 
                         type="submit" 
                         disabled={previewMutation.isPending}
                         className="flex-1"
                       >
-                        {previewMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Gerando...
-                          </>
-                        ) : (
-                          <>
-                            <Rocket className="h-4 w-4 mr-2" />
-                            Gerar Página
-                          </>
-                        )}
+                        {previewMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando...</> : <><Rocket className="h-4 w-4 mr-2" />Gerar Página</>}
                       </Button>
                     </div>
                   </form>
@@ -669,118 +531,43 @@ export default function LandingPages() {
               </CardContent>
             </Card>
 
-            {/* Preview da Página */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Preview
-                  </span>
+                  <span className="flex items-center gap-2"><Eye className="h-5 w-5" />Preview</span>
                   {previewHtml && (
                     <div className="flex items-center gap-2">
-                      {previewVariations.length > 1 && (
-                        <div className="flex items-center gap-1">
-                          {previewVariations.map((_, index) => (
-                            <Button
-                              key={index}
-                              variant={activePreview === index ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => {
-                                setActivePreview(index);
-                                setPreviewHtml(previewVariations[index]);
-                              }}
-                            >
-                              {index + 1}
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                      <Button variant="outline" size="sm" onClick={openPreviewWindow}>
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      {previewVariations.length > 1 && previewVariations.map((_, index) => (
+                        <Button key={index} variant={activePreview === index ? "default" : "outline"} size="sm" onClick={() => { setActivePreview(index); setPreviewHtml(previewVariations[index]); }}>{index + 1}</Button>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={openPreviewWindow}><ExternalLink className="h-4 w-4" /></Button>
                     </div>
                   )}
                 </CardTitle>
-                <CardDescription>
-                  {previewHtml ? "Sua página está pronta! Use as ações abaixo para continuar." : "Configure e gere sua landing page para ver o preview"}
-                </CardDescription>
+                <CardDescription>{previewHtml ? "Sua página está pronta! Use as ações abaixo." : "Configure e gere sua página para ver o preview"}</CardDescription>
               </CardHeader>
               <CardContent>
                 {previewHtml ? (
                   <div className="space-y-4">
-                    {/* Preview iframe */}
                     <div className="border rounded-lg overflow-hidden bg-white" style={{ height: '400px' }}>
-                      <iframe
-                        srcDoc={previewHtml}
-                        className="w-full h-full"
-                        title="Landing Page Preview"
-                      />
+                      <iframe srcDoc={previewHtml} className="w-full h-full" title="Landing Page Preview" />
                     </div>
-                    
-                    {/* Ações do Preview */}
                     <div className="flex flex-wrap gap-2">
-                      <Button 
-                        onClick={onGenerateVariations}
-                        disabled={variationsMutation.isPending}
-                        variant="outline"
-                        size="sm"
-                      >
-                        {variationsMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Gerando...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="h-4 w-4 mr-2" />
-                            Gerar Variações
-                          </>
-                        )}
+                      <Button onClick={onGenerateVariations} disabled={variationsMutation.isPending} variant="outline" size="sm">
+                        {variationsMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando...</> : <><Wand2 className="h-4 w-4 mr-2" />Gerar Variações</>}
                       </Button>
-                      
-                      <Button 
-                        onClick={handleOptimize}
-                        disabled={optimizeMutation.isPending}
-                        variant="outline"
-                        size="sm"
-                      >
-                        {optimizeMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Otimizando...
-                          </>
-                        ) : (
-                          <>
-                            <Zap className="h-4 w-4 mr-2" />
-                            Otimizar
-                          </>
-                        )}
+                      <Button onClick={handleOptimize} disabled={optimizeMutation.isPending} variant="outline" size="sm">
+                        {optimizeMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Otimizando...</> : <><Zap className="h-4 w-4 mr-2" />Otimizar</>}
                       </Button>
-                      
-                      <Button 
-                        onClick={handleEditClick}
-                        disabled={saveAndEditMutation.isPending}
-                        size="sm"
-                      >
-                        {saveAndEditMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Salvando...
-                          </>
-                        ) : (
-                          <>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Salvar & Editar
-                          </>
-                        )}
+                      <Button onClick={handleEditClick} disabled={saveAndEditMutation.isPending} size="sm">
+                        {saveAndEditMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : <><Edit className="h-4 w-4 mr-2" />Salvar & Editar</>}
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Configure sua página e clique em "Gerar Página" para ver o preview</p>
+                    <p>Clique em "Gerar Página" para ver o preview</p>
                   </div>
                 )}
               </CardContent>
@@ -789,61 +576,26 @@ export default function LandingPages() {
         </TabsContent>
 
         <TabsContent value="manage" className="space-y-6">
-          {/* Lista de Landing Pages Existentes */}
           <div className="grid gap-4">
             {landingPages.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="font-semibold mb-2">Nenhuma landing page criada</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Comece criando sua primeira página na aba "Criar Nova Página"
-                  </p>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="text-center py-12"><Layers className="h-12 w-12 mx-auto mb-4 opacity-50" /><h3 className="font-semibold mb-2">Nenhuma landing page criada</h3></CardContent></Card>
             ) : (
               landingPages.map((lp) => (
                 <Card key={lp.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <h3 className="font-semibold">{lp.name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getStatusBadge(lp.status)}
-                            {lp.campaign && (
-                              <Badge variant="outline">
-                                <Target className="h-3 w-3 mr-1" />
-                                {lp.campaign.name}
-                              </Badge>
-                            )}
-                          </div>
+                  <CardContent className="p-6 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <h3 className="font-semibold">{lp.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getStatusBadge(lp.status)}
+                          {lp.campaign && (<Badge variant="outline"><Target className="h-3 w-3 mr-1" />{lp.campaign.name}</Badge>)}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {lp.url && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={lp.url} target="_blank" rel="noopener noreferrer">
-                              <LinkIcon className="h-4 w-4 mr-2" />
-                              Ver Online
-                            </a>
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditingLp(lp);
-                            setShowEditor(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" asChild><a href={`/lp/${lp.slug}`} target="_blank" rel="noopener noreferrer"><LinkIcon className="h-4 w-4 mr-2" />Ver Online</a></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setEditingLp(lp); setShowEditor(true); }}><Edit className="h-4 w-4 mr-2" />Editar</Button>
+                      <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
                     </div>
                   </CardContent>
                 </Card>
