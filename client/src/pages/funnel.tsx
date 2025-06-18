@@ -1,15 +1,15 @@
 // client/src/pages/funnel.tsx
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from '@/lib/api';
+import { Slider } from '../components/ui/slider';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Checkbox } from '../components/ui/checkbox';
+import { Button } from '../components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { useToast } from '../hooks/use-toast';
+import { apiRequest } from '../lib/api';
 import {
     DollarSign,
     Target,
@@ -188,11 +188,9 @@ const Funnel3D = ({ data, roas }: { data: FunnelStageData[], roas: number }) => 
         };
     });
     
-    // CORREÇÃO: Adiciona verificação para evitar erro se `segments` estiver vazio.
     const lastSegment = segments.length > 0 ? segments[segments.length - 1] : null;
     const financialBaseY = lastSegment ? lastSegment.topY + SEGMENT_HEIGHT + ELLIPSE_RY : VIEWBOX_HEIGHT - BASE_HEIGHT;
 
-    // CORREÇÃO: Adiciona uma verificação para `data` antes de mapear.
     if (!data || data.length === 0) {
         return <div className="text-center text-gray-400">Dados insuficientes para exibir o funil.</div>;
     }
@@ -248,7 +246,6 @@ export default function LaunchSimulatorPage() {
     };
 
     const calculations = useMemo(() => {
-        // CORREÇÃO: Adiciona verificações para evitar divisão por zero
         const leadsGerados = inputs.cplEstimado > 0 ? (inputs.investimentoTráfego / inputs.cplEstimado) + inputs.listaEmailsExistente : inputs.listaEmailsExistente;
         const leadsAquecidos = leadsGerados * (inputs.taxaParticipacaoCPL / 100);
         const visitantesPaginaVendas = leadsAquecidos * (inputs.taxaCliquesPaginaVendas / 100);
