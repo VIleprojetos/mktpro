@@ -8,7 +8,7 @@ import {
   landingPages as landingPagesSchema,
   whatsAppConnections as whatsAppConnectionsSchema
 } from '../shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { upload, setupMulter } from './multer.config'; // Ajuste na importação
 import { geminiService } from './services/gemini.service';
 import { funnelGeminiService } from './services/gemini.service.fn';
@@ -29,6 +29,7 @@ import { JWT_SECRET, UPLOADS_PATH, APP_BASE_URL, GOOGLE_CLIENT_ID } from './conf
 import { handleMCPConversation } from "./mcp_handler";
 import axios from "axios";
 import { createServer, type Server as HttpServer } from "http";
+import { integrationsRouter } from './integrations';
 
 
 export interface AuthenticatedRequest extends Request {
@@ -282,6 +283,241 @@ async function doRegisterRoutes(app: express.Express): Promise<HttpServer> {
     });
     apiRouter.put('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const data = schemaShared.insertFlowSchema.partial().parse(req.body); const updated = await storage.updateFlow(flowId, data, req.user!.id); if (!updated) return res.status(404).json({error: "Fluxo não encontrado."}); res.json(updated); } catch (e) { next(e); }});
     apiRouter.delete('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const success = await storage.deleteFlow(flowId, req.user!.id); if (!success) return res.status(404).json({error: "Fluxo não encontrado."}); res.status(204).send(); } catch (e) { next(e); }});
+
+    // --- ROTAS DE INTEGRAÇÕES ---
+    // Definição das integrações disponíveis
+    const AVAILABLE_INTEGRATIONS = [
+      {
+        id: 'google-ads',
+        name: 'Google Ads',
+        description: 'Gerencie campanhas, palavras-chave e relatórios do Google Ads',
+        icon: 'SiGoogle',
+        status: 'disconnected',
+        features: ['Campanhas', 'Palavras-chave', 'Relatórios', 'Conversões'],
+      },
+      {
+        id: 'meta-ads',
+        name: 'Meta Business (Facebook/Instagram)',
+        description: 'Integração completa com Facebook Ads e Instagram',
+        icon: 'SiFacebook',
+        status: 'disconnected',
+        features: ['Campanhas', 'Conjuntos de anúncios', 'Criativos', 'Pixels'],
+      },
+      {
+        id: 'linkedin-ads',
+        name: 'LinkedIn Ads',
+        description: 'Campanhas B2B e segmentação profissional',
+        icon: 'SiLinkedin',
+        status: 'disconnected',
+        features: ['Campanhas B2B', 'Segmentação', 'Lead Gen Forms'],
+      },
+      {
+        id: 'tiktok-ads',
+        name: 'TikTok for Business',
+        description: 'Anúncios na plataforma de vídeos mais popular',
+        icon: 'SiTiktok',
+        status: 'disconnected',
+        features: ['Vídeo Ads', 'Spark Ads', 'Audiências'],
+      },
+      {
+        id: 'whatsapp-business',
+        name: 'WhatsApp Business API',
+        description: 'Automação e mensagens em massa via WhatsApp',
+        icon: 'SiWhatsapp',
+        status: 'disconnected',
+        features: ['Mensagens', 'Templates', 'Webhooks', 'Catálogo'],
+      }
+    ];
+
+    // Listar integrações disponíveis
+    apiRouter.get('/integrations', async (req: AuthenticatedRequest, res, next) => {
+      try {
+        // Buscar integrações conectadas do usuário
+        const userIntegrations = await db
+          .select()
+          .from(schemaShared.integrations)
+          .where(eq(schemaShared.integrations.userId, req.user!.id));
+
+        // Mapear integrações disponíveis com status do usuário
+        const integrationsWithStatus = AVAILABLE_INTEGRATIONS.map(integration => {
+          const userIntegration = userIntegrations.find(ui => ui.id === integration.id);
+          
+          return {
+            ...integration,
+            status: userIntegration?.status || 'disconnected',
+            lastSync: userIntegration?.lastSync || null,
+            accountInfo: userIntegration?.metadata?.accountInfo || null,
+          };
+        });
+
+        res.json(integrationsWithStatus);
+      } catch (error) {
+        console.error('Erro ao buscar integrações:', error);
+        next(error);
+      }
+    });
+
+    // Salvar credenciais de integração
+    apiRouter.post('/integrations/save-credentials', async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const { id, name, clientId, clientSecret, developerToken } = req.body;
+
+        if (!id || !name || !clientId || !clientSecret) {
+          return res.status(400).json({ error: 'ID, nome, Client ID e Client Secret são obrigatórios.' });
+        }
+
+        const dataToUpsert = {
+          id,
+          userId: req.user!.id,
+          platform: id as any,
+          credentials: {
+            clientId,
+            clientSecret,
+            developerToken: developerToken || null,
+          },
+          metadata: {},
+          status: 'disconnected' as const,
+          updatedAt: new Date(),
+        };
+
+        const result = await db
+          .insert(schemaShared.integrations)
+          .values({
+            ...dataToUpsert,
+            createdAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [schemaShared.integrations.id, schemaShared.integrations.userId],
+            set: {
+              credentials: dataToUpsert.credentials,
+              updatedAt: dataToUpsert.updatedAt,
+            },
+          })
+          .returning();
+
+        res.json(result[0]);
+      } catch (error) {
+        console.error('Erro ao salvar credenciais:', error);
+        next(error);
+      }
+    });
+
+    // Gerar URL de conexão OAuth
+    apiRouter.get('/integrations/connect/:id', async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const { id } = req.params;
+
+        const integration = await db.query.integrations.findFirst({
+          where: and(eq(schemaShared.integrations.id, id), eq(schemaShared.integrations.userId, req.user!.id)),
+        });
+
+        if (!integration?.credentials?.clientId) {
+          return res.status(400).json({
+            error: 'Client ID não configurado. Salve as credenciais primeiro.',
+          });
+        }
+
+        const redirectUri = `${process.env.VITE_APP_URL || 'http://localhost:3000'}/integrations/callback`;
+        let authUrl = '';
+
+        const state = Buffer.from(
+          JSON.stringify({ userId: req.user!.id, integrationId: id })
+        ).toString('base64');
+
+        switch (id) {
+          case 'google-ads': {
+            const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+            url.searchParams.set('client_id', integration.credentials.clientId);
+            url.searchParams.set('redirect_uri', redirectUri);
+            url.searchParams.set('response_type', 'code');
+            url.searchParams.set('scope', 'https://www.googleapis.com/auth/adwords');
+            url.searchParams.set('access_type', 'offline');
+            url.searchParams.set('prompt', 'consent');
+            url.searchParams.set('state', state);
+            authUrl = url.toString();
+            break;
+          }
+          case 'meta-ads': {
+            const url = new URL('https://www.facebook.com/v18.0/dialog/oauth');
+            url.searchParams.set('client_id', integration.credentials.clientId);
+            url.searchParams.set('redirect_uri', redirectUri);
+            url.searchParams.set('state', state);
+            url.searchParams.set('scope', 'ads_management,ads_read,business_management');
+            authUrl = url.toString();
+            break;
+          }
+          case 'linkedin-ads': {
+            const url = new URL('https://www.linkedin.com/oauth/v2/authorization');
+            url.searchParams.set('client_id', integration.credentials.clientId);
+            url.searchParams.set('redirect_uri', redirectUri);
+            url.searchParams.set('response_type', 'code');
+            url.searchParams.set('scope', 'r_ads,r_ads_reporting,rw_ads');
+            url.searchParams.set('state', state);
+            authUrl = url.toString();
+            break;
+          }
+          case 'tiktok-ads': {
+            const url = new URL('https://ads.tiktok.com/marketing_api/auth');
+            url.searchParams.set('client_id', integration.credentials.clientId);
+            url.searchParams.set('redirect_uri', redirectUri);
+            url.searchParams.set('response_type', 'code');
+            url.searchParams.set('scope', 'ads:read,ads:write');
+            url.searchParams.set('state', state);
+            authUrl = url.toString();
+            break;
+          }
+          case 'whatsapp-business': {
+            return res.status(400).json({
+              error: 'WhatsApp Business API requer configuração manual. Entre em contato com o suporte.',
+            });
+          }
+          default:
+            return res.status(400).json({
+              error: 'Esta integração não suporta conexão OAuth.',
+            });
+        }
+
+        res.json({ authUrl });
+      } catch (error) {
+        console.error('Erro ao gerar URL de conexão:', error);
+        next(error);
+      }
+    });
+
+    // Sincronizar integração
+    apiRouter.post('/integrations/sync/:id', async (req: AuthenticatedRequest, res, next) => {
+      try {
+        const { id } = req.params;
+
+        const integration = await db.query.integrations.findFirst({
+          where: and(eq(schemaShared.integrations.id, id), eq(schemaShared.integrations.userId, req.user!.id)),
+        });
+
+        if (!integration) {
+          return res.status(404).json({ error: 'Integração não encontrada' });
+        }
+
+        if (integration.status !== 'connected') {
+          return res.status(400).json({ error: 'Integração não está conectada' });
+        }
+
+        // Atualizar timestamp de última sincronização
+        await db
+          .update(schemaShared.integrations)
+          .set({ lastSync: new Date(), updatedAt: new Date() })
+          .where(
+            and(
+              eq(schemaShared.integrations.id, id),
+              eq(schemaShared.integrations.userId, req.user!.id)
+            )
+          );
+
+        res.json({ message: 'Sincronização iniciada com sucesso', lastSync: new Date() });
+      } catch (error) {
+        console.error('Erro ao sincronizar integração:', error);
+        next(error);
+      }
+    });
 
     // --- REGISTRO DOS ROUTERS ---
     app.use('/api', publicRouter, apiRouter);
