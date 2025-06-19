@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -52,7 +52,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
 
-function Router() {
+// Este é o seu componente que define as rotas
+function AppRoutes() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
@@ -93,9 +94,12 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            <Toaster />
-            <Router />
-            <FloatingMCPAgent />
+            {/* CORREÇÃO: Envolver as rotas com o Router da biblioteca wouter */}
+            <WouterRouter>
+              <Toaster />
+              <AppRoutes /> {/* Componente com o Switch/Routes */}
+              <FloatingMCPAgent />
+            </WouterRouter>
           </TooltipProvider>
         </QueryClientProvider>
       </ThemeProvider>
