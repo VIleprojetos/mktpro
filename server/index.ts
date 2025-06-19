@@ -1,83 +1,70 @@
-import { Hono } from 'hono';
-import { serve } from '@hono/node-server';
-import { serveStatic } from '@hono/node-server/serve-static';
-import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
-import { createMiddleware } from 'hono/factory';
+import 'dotenv/config';
+import express from 'express';
+import { RouterSetup } from './routes';
+import { UPLOADS_PATH } from './config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { CronService } from './services/cron.service';
 
-// --- ATENÇÃO: As importações abaixo estavam causando o erro de build ---
-// A ferramenta de build (esbuild) não conseguiu encontrar os arquivos nos caminhos especificados.
-// As linhas foram comentadas para permitir que o build seja concluído.
-// Você precisará verificar a localização correta desses arquivos e corrigir os caminhos depois.
+// Correção para __dirname em ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// import { authMiddleware } from './middleware/auth';
-// import { users as usersRoute } from './routes/users';
-// import { campaigns as campaignsRoute } from './routes/campaigns';
-// import { tasks as tasksRoute } from './routes/tasks';
-// import { files as filesRoute } from './routes/files';
-// import { mcp as mcpRoute } from './routes/mcp';
-// import { auth as authRoute } from './routes/auth';
-// import { whatsapp as whatsappRoute } from './routes/whatsapp';
+const PORT = process.env.PORT || 8000;
 
-// A rota de integrações que criamos. O arquivo integrations.ts deve estar em /server/
-import { integrationsRouter } from './integrations';
+async function bootstrap() {
+  try {
+    const app = express();
+    
+    // CORREÇÃO: O caminho correto para os arquivos do cliente é dentro do próprio diretório 'dist'
+    const clientDistPath = path.join(__dirname, 'public');
 
-const app = new Hono();
+    // Middlewares com limites aumentados para payloads grandes
+    app.use(express.json({ 
+      limit: '50mb',  // Aumenta o limite para requisições JSON
+      parameterLimit: 100000,
+      extended: true 
+    }));
+    
+    app.use(express.urlencoded({ 
+      limit: '50mb',  // Aumenta o limite para dados de formulário
+      extended: true,
+      parameterLimit: 100000
+    }));
+    
+    // Middleware adicional para requisições raw (se necessário)
+    app.use(express.raw({ 
+      limit: '50mb',
+      type: ['application/octet-stream', 'image/*', 'video/*', 'audio/*']
+    }));
+    
+    // Servir arquivos de upload estaticamente
+    app.use('/uploads', express.static(UPLOADS_PATH));
+    
+    // Registrar rotas da API
+    const server = await RouterSetup.registerRoutes(app);
+    
+    // Servir arquivos estáticos da aplicação cliente (Vite build)
+    app.use(express.static(clientDistPath));
+    
+    // Rota catch-all para servir o index.html para qualquer outra requisição (SPA behavior)
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
 
-// --- ATENÇÃO: Middleware de autenticação provisório ---
-// Como o 'authMiddleware' original não foi encontrado, um substituto simples foi criado.
-// Ele define um usuário fixo para fins de desenvolvimento.
-// É ESSENCIAL QUE VOCÊ SUBSTITUA ISTO PELA SUA LÓGICA DE AUTENTICAÇÃO REAL.
-const placeholderAuthMiddleware = createMiddleware(async (c, next) => {
-  // Em um app real, você validaria um token JWT aqui.
-  const user = { id: 'user_placeholder_id', name: 'Usuário Temporário' };
-  c.set('user', user);
-  await next();
-});
+    server.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      
+      // Inicializar tarefas agendadas
+      const cronService = new CronService();
+      cronService.startTasks();
+      console.log('⏰ Serviço de Cron inicializado.');
+    });
+    
+  } catch (error) {
+    console.error('❌ Falha ao iniciar o servidor:', error);
+    process.exit(1);
+  }
+}
 
-// Middlewares
-app.use(
-  '*',
-  cors({
-    origin: (origin) => {
-      return origin.endsWith('.localhost:5173') || origin.includes('mktpro.com.br')
-        ? origin
-        : 'https://mktpro.com.br';
-    },
-    credentials: true,
-    maxAge: 86400,
-  })
-);
-app.use(logger());
-// A linha original 'app.use('/api/*', authMiddleware);' foi substituída pelo placeholder.
-app.use('/api/*', placeholderAuthMiddleware);
-
-
-// Rotas da API
-const apiRoutes = app
-  .basePath('/api')
-  // As rotas abaixo foram comentadas pois seus arquivos não foram encontrados.
-  // .route('/', authRoute)
-  // .route('/users', usersRoute)
-  // .route('/campaigns', campaignsRoute)
-  // .route('/tasks', tasksRoute)
-  // .route('/files', filesRoute)
-  // .route('/mcp', mcpRoute)
-  // .route('/whatsapp', whatsappRoute)
-  .route('/integrations', integrationsRouter); // A rota de integrações está funcional.
-
-// Servir estáticos (Frontend)
-app.use('/*', serveStatic({ root: './client/dist' }));
-app.get('/*', serveStatic({ path: './client/dist/index.html' }));
-
-// Export para diferentes ambientes
-export default app;
-export type ApiRoutes = typeof apiRoutes;
-
-const port = Number(process.env.PORT) || 3000;
-console.log(`Servidor rodando na porta ${port}`);
-
-serve({
-  fetch: app.fetch,
-  port,
-});
+bootstrap();
