@@ -13,28 +13,16 @@ if (!process.env.DATABASE_URL) {
 
 // Função para parsear a URL de conexão, evitando problemas com caracteres especiais
 const parseConnectionString = (url: string) => {
-    try {
-        const urlObj = new URL(url);
-        return {
-            user: urlObj.username,
-            password: urlObj.password,
-            host: urlObj.hostname,
-            port: parseInt(urlObj.port, 10),
-            database: urlObj.pathname.slice(1), // Remove a barra inicial
-        };
-    } catch (error) {
-        // Fallback para parsing manual se URL() falhar
-        const match = url.match(/^(postgres|postgresql):\/\/([^:]+):(.+)@([^:]+):(\d+)\/(.+)$/);
-        if (!match) {
-            throw new Error("Formato inválido da DATABASE_URL. Não foi possível fazer o parse manual.");
-        }
-        const [, , user, password, host, port, database] = match;
-        return { user, password, host, port: parseInt(port, 10), database };
+    const match = url.match(/^(postgres|postgresql):\/\/([^:]+):(.+)@([^:]+):(\d+)\/(.+)$/);
+    if (!match) {
+        throw new Error("Formato inválido da DATABASE_URL. Não foi possível fazer o parse manual.");
     }
+    const [, , user, password, host, port, database] = match;
+    return { user, password, host, port: parseInt(port, 10), database };
 };
 
 const connectionConfig: PoolConfig = {
-    connectionString: process.env.DATABASE_URL,
+    ...parseConnectionString(process.env.DATABASE_URL),
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 };
 
