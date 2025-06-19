@@ -52,6 +52,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
 
+// Seu componente que define a estrutura das rotas
 function AppRoutes() {
   return (
     <Switch>
@@ -93,11 +94,14 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
+            {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
+            {/* O componente WouterRouter deve envolver todos os componentes que usam o roteamento. */}
             <WouterRouter>
               <Toaster />
-              <AppRoutes />
+              <AppRoutes /> {/* Seu componente com as rotas */}
               <FloatingMCPAgent />
             </WouterRouter>
+            {/* ======================== FIM DA CORREÇÃO ========================= */}
           </TooltipProvider>
         </QueryClientProvider>
       </ThemeProvider>
