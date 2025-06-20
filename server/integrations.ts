@@ -2,7 +2,14 @@ import { and, eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { db } from './db';
 import { integrations } from '../shared/schema';
-import { env } from './config';
+import { 
+    APP_BASE_URL,
+    JWT_SECRET,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    FACEBOOK_CLIENT_ID,
+    FACEBOOK_CLIENT_SECRET
+} from './config';
 
 interface TokenResponse {
   access_token: string;
@@ -14,17 +21,17 @@ interface StateTokenPayload {
   userId: number;
 }
 
-const getRedirectUri = (platform: string) => `${env.APP_URL}/api/integrations/${platform}/callback`;
+const getRedirectUri = (platform: string) => `${APP_BASE_URL}/api/integrations/${platform}/callback`;
 
 // Gera um token temporário para o parâmetro 'state' do OAuth
 const createStateToken = (userId: number): string => {
-  return jwt.sign({ userId }, env.JWT_SECRET, { expiresIn: '10m' });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '10m' });
 };
 
 // Verifica o token do 'state' e retorna o payload
 export const verifyStateToken = (token: string): StateTokenPayload => {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as StateTokenPayload;
+    const payload = jwt.verify(token, JWT_SECRET) as StateTokenPayload;
     if (typeof payload.userId !== 'number') {
       throw new Error('Invalid token payload');
     }
@@ -40,7 +47,7 @@ export const verifyStateToken = (token: string): StateTokenPayload => {
 export const getGoogleAuthUrl = (userId: number) => {
   const state = createStateToken(userId);
   const params = new URLSearchParams({
-    client_id: env.GOOGLE_CLIENT_ID,
+    client_id: GOOGLE_CLIENT_ID,
     redirect_uri: getRedirectUri('google'),
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/analytics.readonly',
@@ -54,8 +61,8 @@ export const getGoogleAuthUrl = (userId: number) => {
 export const handleGoogleCallback = async (code: string, userId: number) => {
   const tokenParams = new URLSearchParams({
     code,
-    client_id: env.GOOGLE_CLIENT_ID,
-    client_secret: env.GOOGLE_CLIENT_SECRET,
+    client_id: GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
     redirect_uri: getRedirectUri('google'),
     grant_type: 'authorization_code',
   });
@@ -96,7 +103,7 @@ export const handleGoogleCallback = async (code: string, userId: number) => {
 export const getFacebookAuthUrl = (userId: number) => {
     const state = createStateToken(userId);
     const params = new URLSearchParams({
-        client_id: env.FACEBOOK_CLIENT_ID,
+        client_id: FACEBOOK_CLIENT_ID,
         redirect_uri: getRedirectUri('facebook'),
         scope: 'ads_management,read_insights',
         response_type: 'code',
@@ -108,8 +115,8 @@ export const getFacebookAuthUrl = (userId: number) => {
 export const handleFacebookCallback = async (code: string, userId: number) => {
     const tokenParams = new URLSearchParams({
         code,
-        client_id: env.FACEBOOK_CLIENT_ID,
-        client_secret: env.FACEBOOK_CLIENT_SECRET,
+        client_id: FACEBOOK_CLIENT_ID,
+        client_secret: FACEBOOK_CLIENT_SECRET,
         redirect_uri: getRedirectUri('facebook'),
     });
 
