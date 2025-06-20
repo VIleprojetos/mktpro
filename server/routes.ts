@@ -1,4 +1,3 @@
-// server/routes.ts
 import express, { Router, Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import { db } from './db';
 import { 
@@ -6,10 +5,11 @@ import {
   tasks as tasksSchema,
   users as usersSchema,
   landingPages as landingPagesSchema,
-  whatsAppConnections as whatsAppConnectionsSchema
+  whatsAppConnections as whatsAppConnectionsSchema,
+  integrations as integrationsSchema // Adicionado import
 } from '../shared/schema';
-import { eq, desc } from 'drizzle-orm';
-import { upload, setupMulter } from './multer.config'; // Ajuste na importação
+import { eq, desc, and } from 'drizzle-orm';
+import { upload, setupMulter } from './multer.config';
 import { geminiService } from './services/gemini.service';
 import { funnelGeminiService } from './services/gemini.service.fn';
 import { openRouterService } from './services/openrouter.service';
@@ -19,7 +19,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { startWhatsAppSession, getSessionStatus, closeWhatsAppSession, getQRCode, sendMessage, WhatsappConnectionService } from './services/whatsapp-connection.service';
 import { executeFlow } from './flow-executor';
-import { authenticateToken as mcpAuthenticateToken } from './mcp_handler'; // Renomeado para evitar conflito
+import { authenticateToken as mcpAuthenticateToken } from './mcp_handler';
 import { googleDriveService } from './services/google-drive.service';
 import { storage } from "./storage";
 import * as schemaShared from "../shared/schema";
@@ -29,7 +29,14 @@ import { JWT_SECRET, UPLOADS_PATH, APP_BASE_URL, GOOGLE_CLIENT_ID } from './conf
 import { handleMCPConversation } from "./mcp_handler";
 import axios from "axios";
 import { createServer, type Server as HttpServer } from "http";
-
+import { 
+    getGoogleAuthUrl, 
+    handleGoogleCallback, 
+    getFacebookAuthUrl, 
+    handleFacebookCallback, 
+    disconnectPlatform,
+    verifyStateToken
+} from './integrations'; // Importações para as integrações
 
 export interface AuthenticatedRequest extends Request {
   user?: schemaShared.User;
@@ -93,60 +100,93 @@ async function doRegisterRoutes(app: express.Express): Promise<HttpServer> {
 
     // --- ROTAS PÚBLICAS E DE AUTENTICAÇÃO ---
     publicRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
-    publicRouter.post('/auth/register', async (req, res, next) => {
-      try {
-        const data = schemaShared.insertUserSchema.parse(req.body);
-        if (await storage.getUserByEmail(data.email)) {
-          return res.status(409).json({ error: 'Email já cadastrado.' });
+    publicRouter.post('/auth/register', async (req, res, next) => { try { const data = schemaShared.insertUserSchema.parse(req.body); if (await storage.getUserByEmail(data.email)) { return res.status(409).json({ error: 'Email já cadastrado.' }); } const user = await storage.createUser(data); const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' }); res.status(201).json({ user: { id: user.id, username: user.username, email: user.email }, token }); } catch (e) { next(e); } });
+    publicRouter.post('/auth/login', async (req, res, next) => { try { const { email, password } = req.body; if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' }); const user = await storage.getUserByEmail(email); if (!user || !user.password) return res.status(401).json({ error: 'Credenciais inválidas.' }); if (!await storage.validatePassword(password, user.password)) return res.status(401).json({ error: 'Credenciais inválidas.' }); const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' }); res.json({ user: { id: user.id, username: user.username, email: user.email }, token }); } catch (e) { next(e); } });
+    publicRouter.post('/auth/google', async (req, res, next) => { try { const { credential } = req.body; if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: "Google Client ID não configurado." }); const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID }); const payload = ticket.getPayload(); if (!payload?.email || !payload.name) return res.status(400).json({ error: 'Payload do Google inválido.' }); let user = await storage.getUserByEmail(payload.email) || await storage.createUser({ email: payload.email, username: payload.name }); const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' }); res.json({ user: { id: user.id, username: user.username, email: user.email }, token }); } catch (error) { next(new Error("Falha na autenticação com Google.")); } });
+    publicRouter.get('/landingpages/slug/:slug', async (req, res, next) => { try { const lp = await storage.getLandingPageBySlug(req.params.slug); if (!lp) return res.status(404).json({ error: 'Página não encontrada' }); res.json(lp); } catch(e) { next(e); } });
+
+    // --- ROTA DE CALLBACK DE INTEGRAÇÃO (PÚBLICA) ---
+    publicRouter.get('/integrations/:platform/callback', async (req, res, next) => {
+        const { platform } = req.params;
+        const { code, state } = req.query;
+
+        if (!code || typeof code !== 'string') {
+            return res.redirect(`/integrations?error=auth_failed`);
         }
-        const user = await storage.createUser(data);
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.status(201).json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (e) {
-        next(e);
-      }
-    });
-    publicRouter.post('/auth/login', async (req, res, next) => {
-      try {
-        const { email, password } = req.body;
-        if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
-        const user = await storage.getUserByEmail(email);
-        if (!user || !user.password) return res.status(401).json({ error: 'Credenciais inválidas.' });
-        if (!await storage.validatePassword(password, user.password)) return res.status(401).json({ error: 'Credenciais inválidas.' });
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (e) {
-        next(e);
-      }
-    });
-    publicRouter.post('/auth/google', async (req, res, next) => {
-      try {
-        const { credential } = req.body;
-        if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: "Google Client ID não configurado." });
-        const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
-        const payload = ticket.getPayload();
-        if (!payload?.email || !payload.name) return res.status(400).json({ error: 'Payload do Google inválido.' });
-        let user = await storage.getUserByEmail(payload.email) || await storage.createUser({ email: payload.email, username: payload.name });
-        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
-      } catch (error) {
-        next(new Error("Falha na autenticação com Google."));
-      }
-    });
-    publicRouter.get('/landingpages/slug/:slug', async (req, res, next) => {
-      try {
-        const lp = await storage.getLandingPageBySlug(req.params.slug);
-        if (!lp) return res.status(404).json({ error: 'Página não encontrada' });
-        res.json(lp);
-      } catch(e) {
-        next(e);
-      }
+        if (!state || typeof state !== 'string') {
+            return res.redirect(`/integrations?error=invalid_state`);
+        }
+
+        try {
+            const { userId } = verifyStateToken(state);
+            switch (platform) {
+                case 'google':
+                    await handleGoogleCallback(code, userId);
+                    break;
+                case 'facebook':
+                    await handleFacebookCallback(code, userId);
+                    break;
+                default:
+                    return res.redirect(`/integrations?error=unsupported_platform`);
+            }
+            return res.redirect('/integrations?success=true');
+        } catch (error) {
+            console.error(`Failed to handle ${platform} callback:`, error);
+            return res.redirect(`/integrations?error=callback_failed`);
+        }
     });
 
 
     // --- ROTAS PROTEGIDAS ---
     apiRouter.use(authenticateToken);
     
+    // --- ROTAS DE INTEGRAÇÃO (PROTEGIDAS) ---
+    apiRouter.get('/integrations', async (req: AuthenticatedRequest, res, next) => {
+        try {
+            const userIntegrations = await db.select({
+                platform: integrationsSchema.platform,
+            }).from(integrationsSchema).where(eq(integrationsSchema.userId, req.user!.id));
+            res.json(userIntegrations.map(i => i.platform));
+        } catch (e) {
+            next(e);
+        }
+    });
+
+    apiRouter.get('/integrations/:platform/connect', (req: AuthenticatedRequest, res) => {
+        const { platform } = req.params;
+        let authUrl = '';
+
+        try {
+            switch (platform) {
+                case 'google':
+                    authUrl = getGoogleAuthUrl(req.user!.id);
+                    break;
+                case 'facebook':
+                    authUrl = getFacebookAuthUrl(req.user!.id);
+                    break;
+                default:
+                    return res.status(400).json({ error: 'Platform not supported' });
+            }
+            res.redirect(authUrl);
+        } catch (error) {
+            console.error(`Error getting auth URL for ${platform}:`, error);
+            res.status(500).json({ error: 'Could not generate authentication URL'});
+        }
+    });
+
+    apiRouter.delete('/integrations/:platform', async (req: AuthenticatedRequest, res, next) => {
+        try {
+            const { platform } = req.params;
+            await disconnectPlatform(platform, req.user!.id);
+            res.json({ success: true });
+        } catch (e) {
+            console.error(`Failed to disconnect ${req.params.platform}:`, e);
+            next(e);
+        }
+    });
+
+
+    // --- OUTRAS ROTAS PROTEGIDAS (EXISTENTES) ---
     apiRouter.get('/users', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getAllUsers()); } catch(e) { next(e); }});
     apiRouter.get('/dashboard', async (req: AuthenticatedRequest, res, next) => { try { const timeRange = req.query.timeRange as string | undefined; res.json(await storage.getDashboardData(req.user!.id, timeRange)); } catch (e) { next(e); }});
     
@@ -178,73 +218,15 @@ async function doRegisterRoutes(app: express.Express): Promise<HttpServer> {
 
     // Rota de Landing Pages
     apiRouter.get('/landingpages', async (req: AuthenticatedRequest, res, next) => { try { res.json(await storage.getLandingPages(req.user!.id)); } catch (e) { next(e); }});
-    
-    apiRouter.post('/landingpages', async (req: AuthenticatedRequest, res, next) => { 
-      try { 
-        const { name } = req.body;
-        const slugBase = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const finalSlug = await storage.generateUniqueSlug(slugBase);
-        const lpData = schemaShared.insertLandingPageSchema.parse({ ...req.body, slug: finalSlug });
-        const newLp = await storage.createLandingPage(lpData, req.user!.id);
-        res.status(201).json(newLp);
-      } catch(e){ 
-        next(e); 
-      }
-    });
-    
-    apiRouter.post('/landingpages/preview-advanced', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { prompt, reference, options } = req.body;
-            if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório.' });
-            const generatedHtml = await geminiService.createAdvancedLandingPage(prompt, options || {}, reference);
-            res.status(200).json({ htmlContent: generatedHtml });
-        } catch (e) {
-            next(e);
-        }
-    });
-    
+    apiRouter.post('/landingpages', async (req: AuthenticatedRequest, res, next) => { try { const { name } = req.body; const slugBase = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); const finalSlug = await storage.generateUniqueSlug(slugBase); const lpData = schemaShared.insertLandingPageSchema.parse({ ...req.body, slug: finalSlug }); const newLp = await storage.createLandingPage(lpData, req.user!.id); res.status(201).json(newLp); } catch(e){ next(e); }});
+    apiRouter.post('/landingpages/preview-advanced', async (req: AuthenticatedRequest, res, next) => { try { const { prompt, reference, options } = req.body; if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório.' }); const generatedHtml = await geminiService.createAdvancedLandingPage(prompt, options || {}, reference); res.status(200).json({ htmlContent: generatedHtml }); } catch (e) { next(e); }});
     apiRouter.get('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { const lp = await storage.getLandingPage(parseInt(req.params.id), req.user!.id); if (!lp) return res.status(404).json({ error: 'Página não encontrada.' }); res.json(lp); } catch (e) { next(e); } });
     apiRouter.put('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { const lpData = schemaShared.insertLandingPageSchema.partial().parse(req.body); const updated = await storage.updateLandingPage(parseInt(req.params.id), lpData, req.user!.id); if (!updated) return res.status(404).json({ error: "Página não encontrada." }); res.json(updated); } catch(e){ next(e); }});
     apiRouter.delete('/landingpages/:id', async (req: AuthenticatedRequest, res, next) => { try { await storage.deleteLandingPage(parseInt(req.params.id), req.user!.id); res.status(204).send(); } catch(e){ next(e); }});
+    apiRouter.post('/landingpages/generate-variations', async (req: AuthenticatedRequest, res, next) => { try { const { prompt, count, options, reference } = req.body; if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório para gerar variações.' }); const variations = await geminiService.generateVariations(prompt, count || 2, options || {}, reference); res.json({ variations }); } catch (e) { next(e); } });
+    apiRouter.post('/landingpages/optimize', async (req: AuthenticatedRequest, res, next) => { try { const { html, goals } = req.body; if (!html) return res.status(400).json({ error: 'O conteúdo HTML é obrigatório para otimização.' }); const optimizedHtml = await geminiService.optimizeLandingPage(html, goals); res.json({ htmlContent: optimizedHtml }); } catch (e) { next(e); } });
+    apiRouter.post('/analyze-scenario', authenticateToken, async (req: Request, res: Response) => { try { const { inputs, calculations } = req.body; if (!inputs || !calculations) { return res.status(400).json({ message: 'Dados de inputs e calculations são obrigatórios.' }); } const analysis = await funnelGeminiService.analyzeFunnelScenario(inputs, calculations); res.json({ analysis }); } catch (error) { console.error('Erro na rota /analyze-scenario:', error); const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'; res.status(500).json({ message: 'Falha ao analisar o cenário', error: errorMessage }); } });
     
-    apiRouter.post('/landingpages/generate-variations', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { prompt, count, options, reference } = req.body;
-            if (!prompt) return res.status(400).json({ error: 'O prompt é obrigatório para gerar variações.' });
-            const variations = await geminiService.generateVariations(prompt, count || 2, options || {}, reference);
-            res.json({ variations });
-        } catch (e) {
-            next(e);
-        }
-    });
-    
-    apiRouter.post('/landingpages/optimize', async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const { html, goals } = req.body;
-            if (!html) return res.status(400).json({ error: 'O conteúdo HTML é obrigatório para otimização.' });
-            const optimizedHtml = await geminiService.optimizeLandingPage(html, goals);
-            res.json({ htmlContent: optimizedHtml });
-        } catch (e) {
-            next(e);
-        }
-    });
-
-    // ✅ ROTA ADICIONADA PARA CORRIGIR O ERRO 404
-    apiRouter.post('/analyze-scenario', authenticateToken, async (req: Request, res: Response) => {
-      try {
-        const { inputs, calculations } = req.body;
-        if (!inputs || !calculations) {
-          return res.status(400).json({ message: 'Dados de inputs e calculations são obrigatórios.' });
-        }
-        const analysis = await funnelGeminiService.analyzeFunnelScenario(inputs, calculations);
-        res.json({ analysis });
-      } catch (error) {
-        console.error('Erro na rota /analyze-scenario:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-        res.status(500).json({ message: 'Falha ao analisar o cenário', error: errorMessage });
-      }
-    });
-
     // Rotas de Assets para Landing Pages (GrapesJS)
     apiRouter.post('/assets/lp-upload', lpAssetUpload.array('files'), (req: AuthenticatedRequest, res, next) => { try { if (!req.files || !Array.isArray(req.files) || req.files.length === 0) return res.status(400).json({ error: "Nenhum arquivo enviado." }); const urls = req.files.map(file => `${APP_BASE_URL}/${UPLOADS_DIR_NAME}/lp-assets/${file.filename}`); res.status(200).json(urls); } catch(e){ next(e); }});
 
@@ -271,15 +253,7 @@ async function doRegisterRoutes(app: express.Express): Promise<HttpServer> {
     
     // Rotas de Fluxos
     apiRouter.get('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; const campaignId = req.query.campaignId ? parseInt(String(req.query.campaignId)) : undefined; if(flowId) { const flow = await storage.getFlow(flowId, req.user!.id); if (!flow) return res.status(404).json({error: 'Fluxo não encontrado.'}); return res.json(flow); } res.json(await storage.getFlows(req.user!.id, campaignId)); } catch (e) { next(e); }});
-    apiRouter.post('/flows', async (req: AuthenticatedRequest, res, next) => { 
-        try { 
-            const data = schemaShared.insertFlowSchema.omit({ userId: true }).parse(req.body);
-            const newFlow = await storage.createFlow(data, req.user!.id);
-            res.status(201).json(newFlow);
-        } catch(e) { 
-            next(e); 
-        }
-    });
+    apiRouter.post('/flows', async (req: AuthenticatedRequest, res, next) => { try { const data = schemaShared.insertFlowSchema.omit({ userId: true }).parse(req.body); const newFlow = await storage.createFlow(data, req.user!.id); res.status(201).json(newFlow); } catch(e) { next(e); }});
     apiRouter.put('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const data = schemaShared.insertFlowSchema.partial().parse(req.body); const updated = await storage.updateFlow(flowId, data, req.user!.id); if (!updated) return res.status(404).json({error: "Fluxo não encontrado."}); res.json(updated); } catch (e) { next(e); }});
     apiRouter.delete('/flows', async (req: AuthenticatedRequest, res, next) => { try { const flowId = req.query.id ? parseInt(String(req.query.id)) : undefined; if (!flowId) return res.status(400).json({ error: 'ID do fluxo é obrigatório.' }); const success = await storage.deleteFlow(flowId, req.user!.id); if (!success) return res.status(404).json({error: "Fluxo não encontrado."}); res.status(204).send(); } catch (e) { next(e); }});
 
